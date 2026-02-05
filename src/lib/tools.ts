@@ -119,6 +119,36 @@ export const timeTools = {
   getCurrentTimestamp: (): string => {
     return Math.floor(Date.now() / 1000).toString();
   },
+
+  convertTimezone: (input: string, fromTz: string, toTz: string): string => {
+    try {
+      // Input format: YYYY-MM-DD HH:mm:ss
+      // This is a simple implementation. For robust timezone handling, date-fns-tz or dayjs is recommended.
+      // Here we simulate by just showing the time with offset if possible or using simple Date.
+      // Since we don't have a heavy library, we'll return a placeholder message or basic UTC conversion.
+      const date = new Date(input);
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return `UTC: ${date.toISOString()}\nLocal: ${date.toLocaleString()}`;
+    } catch (e) {
+      return 'Error converting timezone';
+    }
+  },
+
+  calcCountdown: (targetDate: string): string => {
+    const target = new Date(targetDate).getTime();
+    const now = Date.now();
+    const diff = target - now;
+
+    if (isNaN(target)) return 'Invalid Date';
+    if (diff < 0) return 'Date passed';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  }
 };
 
 // 颜色工具函数
@@ -141,6 +171,16 @@ export const colorTools = {
     };
     return '#' + hex(match[0]) + hex(match[1]) + hex(match[2]);
   },
+
+  generatePalette: (baseColor: string): string => {
+    // Simple logic: lighter and darker variants
+    // Assume input is HEX
+    return `Base: ${baseColor}\n(Palette generation requires more complex logic, returning placeholder)`;
+  },
+
+  checkContrast: (color1: string, color2: string): string => {
+    return `Contrast check between ${color1} and ${color2}: (Calculation logic pending)`;
+  }
 };
 
 // 文本工具函数
@@ -256,5 +296,27 @@ export const dataTools = {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  },
+
+  mockData: (schema: string): string => {
+    // Simple mock based on keys
+    return JSON.stringify({
+      id: 1,
+      name: "John Doe",
+      email: "john@example.com",
+      role: "admin",
+      active: true
+    }, null, 2);
+  },
+
+  analyzeData: (input: string): string => {
+    // Expecting number list
+    const nums = input.split(/[\s,]+/).map(Number).filter(n => !isNaN(n));
+    if (nums.length === 0) return 'No numbers found';
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const avg = sum / nums.length;
+    return `Count: ${nums.length}\nMin: ${min}\nMax: ${max}\nSum: ${sum}\nAvg: ${avg.toFixed(2)}`;
   }
 };

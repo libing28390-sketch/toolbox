@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations, useLocale } from 'next-intl';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Download, Trash2, Sparkles } from 'lucide-react';
 import { Tool } from '@/data/tools';
 import { codeTools, encodingTools, timeTools, colorTools, textTools, dataTools } from '@/lib/tools';
@@ -22,6 +22,8 @@ const TOOL_EXAMPLES: Record<string, string> = {
   'sha': 'Hello World',
   'uuid': '', // No input needed
   'timestamp': '1707123456',
+  'timezone': '2023-01-01 12:00:00',
+  'countdown': '2025-01-01',
   'case-converter': 'Hello World',
   'simplified-chinese': '憂鬱的臺灣烏龜',
   'emoji-converter': 'I :love: coding! :rocket:',
@@ -31,9 +33,16 @@ const TOOL_EXAMPLES: Record<string, string> = {
   'regex': '^\\d+$\n12345\nabc\n67890',
   'extract-replace': '\\d+\nNUMBER\nOrder #12345: Item #67890',
   'csv-to-json': 'Name,Age,City\nAlice,30,New York\nBob,25,Los Angeles',
+  'excel-preview': 'Name,Age,City\nAlice,30,New York\nBob,25,Los Angeles',
   'markdown-editor': '# Hello Markdown\n\n- Item 1\n- Item 2\n\n**Bold Text**',
+  'mock-data': 'user',
+  'api-tester': 'https://jsonplaceholder.typicode.com/todos/1',
+  'json-tree': '{"a":1, "b": [2,3]}',
+  'data-analysis': '10, 20, 5, 40, 15',
   'random-generator': '32',
   'color-converter': '#3b82f6',
+  'color-palette': '#3b82f6',
+  'contrast-check': '#ffffff\n#000000',
   'ip-subnet-calculator': '192.168.1.0/24',
   'ip-lookup': '8.8.8.8',
   'whois': 'google.com',
@@ -53,6 +62,12 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setInput('');
+    setOutput('');
+    setError('');
+  }, [tool.id]);
 
   const handleConvert = async () => {
     setError('');
@@ -101,6 +116,12 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
             result = timeTools.dateToTimestamp(input);
           }
           break;
+        case 'timezone':
+          result = timeTools.convertTimezone(input, 'UTC', 'Local');
+          break;
+        case 'countdown':
+          result = timeTools.calcCountdown(input);
+          break;
         case 'case-converter':
           result = textTools.toUpperCase(input); // Default to Upper, can add toggle later
           break;
@@ -147,8 +168,30 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
         case 'csv-to-json':
           result = dataTools.csvToJson(input);
           break;
+        case 'excel-preview':
+          // Re-use CSV logic for text-based preview
+          result = dataTools.csvToJson(input);
+          break;
         case 'markdown-editor':
           result = await dataTools.markdownToHtml(input);
+          break;
+        case 'mock-data':
+          result = dataTools.mockData(input);
+          break;
+        case 'api-tester':
+          try {
+            const res = await fetch(input);
+            const data = await res.json();
+            result = JSON.stringify(data, null, 2);
+          } catch (e: any) {
+            result = `API Error: ${e.message}`;
+          }
+          break;
+        case 'json-tree':
+          result = codeTools.formatJSON(input);
+          break;
+        case 'data-analysis':
+          result = dataTools.analyzeData(input);
           break;
         case 'random-generator':
           result = dataTools.generateRandom(input ? parseInt(input) : 16);
@@ -158,6 +201,17 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
             result = colorTools.hexToRgb(input);
           } else if (input.includes('rgb')) {
             result = colorTools.rgbToHex(input);
+          }
+          break;
+        case 'color-palette':
+          result = colorTools.generatePalette(input);
+          break;
+        case 'contrast-check':
+          const colors = input.split('\n');
+          if (colors.length >= 2) {
+            result = colorTools.checkContrast(colors[0], colors[1]);
+          } else {
+            result = 'Please enter two colors (one per line)';
           }
           break;
         case 'ip-subnet-calculator':
@@ -307,7 +361,7 @@ ${subnets.join('\n')}`;
                     ? "Enter Regex on Line 1\nThen content to test..."
                     : tool.id === 'extract-replace'
                     ? "Line 1: Regex Pattern\nLine 2: Replacement\nLine 3+: Text content..."
-                    : tool.id === 'csv-to-json'
+                    : tool.id === 'csv-to-json' || tool.id === 'excel-preview'
                     ? "Paste CSV content here..."
                     : tool.id === 'markdown-editor'
                     ? "Enter Markdown content..."
@@ -315,6 +369,12 @@ ${subnets.join('\n')}`;
                     ? "Enter length (default 16)"
                     : tool.id === 'emoji-converter'
                     ? "Enter text with shortcodes (e.g. :smile:)"
+                    : tool.id === 'contrast-check'
+                    ? "Enter two colors (hex/rgb), one per line"
+                    : tool.id === 'data-analysis'
+                    ? "Enter numbers separated by comma or space"
+                    : tool.id === 'api-tester'
+                    ? "Enter API URL (e.g. https://api.example.com/data)"
                     : "Paste your content here..."
                 }
             />
