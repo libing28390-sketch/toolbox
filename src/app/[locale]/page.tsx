@@ -10,22 +10,29 @@ import { toolsData } from '@/data/tools';
 export default function Home() {
   const t = useTranslations();
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <main className="flex flex-col h-screen bg-slate-950 overflow-hidden">
       <Header />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 flex-shrink-0 z-10">
+        <aside 
+          className={`flex-shrink-0 z-10 transition-all duration-300 ease-in-out ${
+            isSidebarCollapsed ? 'w-16' : 'w-64'
+          }`}
+        >
           <ToolGrid 
             tools={toolsData} 
             onSelectTool={setSelectedTool} 
             selectedToolId={selectedTool}
+            isCollapsed={isSidebarCollapsed}
+            onToggleSidebar={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           />
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto bg-slate-950 relative">
+        <div className="flex-1 overflow-y-auto bg-slate-950 relative transition-all duration-300">
           <div className="max-w-5xl mx-auto p-6 md:p-12">
             {selectedTool ? (
               <ToolPanel tool={toolsData.flat().find(t => t.id === selectedTool)!} />

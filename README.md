@@ -98,25 +98,41 @@ npm run lint
 3. 在 `src/lib/tools.ts` 中实现工具逻辑
 4. 在 `src/components/ToolPanel.tsx` 中添加工具处理
 
-## 🎨 样式定制
+## 🚀 部署与 Git 工作流
 
-使用 Tailwind CSS 进行样式定制，配置文件自动从 `tailwind.config.ts` 加载。
+本项目使用 Git 进行版本控制，并部署在 Vercel 上。当代码推送到 GitHub 时，Vercel 会自动触发构建和部署。
 
-## 📱 响应式设计
+### 提交并推送代码更新
 
-项目采用 Mobile First 方法，支持所有设备尺寸：
-- 移动设备 (< 640px)
-- 平板 (640px - 1024px)
-- 桌面 (> 1024px)
+每次修改代码后，请按以下步骤更新到 GitHub：
 
-## 🚢 部署
+1. **查看更改状态**
+   ```bash
+   git status
+   ```
 
-项目可以部署到：
-- Vercel (推荐)
-- Netlify
-- Docker
-- 其他支持 Node.js 的平台
+2. **添加更改**
+   ```bash
+   # 添加所有更改
+   git add .
+   ```
 
-## 📄 许可证
+3. **提交更改**
+   ```bash
+   # 提交并附带说明信息
+   git commit -m "描述你的更改内容，例如：Fix layout issues"
+   ```
 
-MIT
+4. **推送到远程仓库**
+   ```bash
+   git push
+   ```
+   > 首次推送如果遇到权限问题，请确保远程仓库地址包含用户名（如果是多账号环境）：
+   > `git remote set-url origin https://<你的用户名>@github.com/<用户名>/<仓库名>.git`
+
+### 部署状态
+
+推送成功后，请访问 [Vercel Dashboard](https://vercel.com/dashboard) 查看部署进度。
+- **Building**: 正在构建
+- **Ready**: 部署成功，可访问线上地址
+- **Error**: 构建失败，需查看日志修复
