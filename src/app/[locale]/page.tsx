@@ -13,11 +13,11 @@ export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   return (
-    <main className="flex flex-col h-screen bg-zinc-950 overflow-hidden text-zinc-100">
+    <main className="flex flex-col h-screen bg-background overflow-hidden text-zinc-100">
       <Header />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Main Dashboard - Always Visible */}
-        <div className="flex-1 overflow-y-auto bg-zinc-950 relative transition-all duration-300">
+        <div className="flex-1 overflow-y-auto bg-background relative transition-all duration-300">
           <Dashboard tools={toolsData} onSelectTool={setSelectedTool} />
         </div>
 

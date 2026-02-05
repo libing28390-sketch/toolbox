@@ -317,11 +317,11 @@ ${subnets.join('\n')}`;
   };
 
   return (
-    <div className="bg-zinc-900/40 backdrop-blur-sm rounded-xl border border-zinc-800 shadow-xl overflow-hidden flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-      <div className="p-6 border-b border-zinc-800 flex justify-between items-start flex-shrink-0 bg-zinc-900/50">
+    <div className="bg-[#161618] backdrop-blur-sm rounded-xl border border-white/10 shadow-xl overflow-hidden flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
+      <div className="p-6 border-b border-white/10 flex justify-between items-start flex-shrink-0 bg-[#161618]">
         <div>
-          <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
-            <span className="text-3xl p-2 bg-zinc-800/50 rounded-lg">{tool.icon}</span> 
+          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+            <span className="text-3xl p-2 bg-[#09090b] rounded-lg text-blue-500 border border-white/5">{tool.icon}</span> 
             {t(tool.nameKey as any)}
           </h2>
           <p className="text-zinc-400 text-sm mt-1 ml-14">{t(tool.categoryKey as any)}</p>
@@ -332,13 +332,13 @@ ${subnets.join('\n')}`;
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
           <div className="flex flex-col space-y-2 h-full">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                 {t('buttons.convert')}
               </label>
               {TOOL_EXAMPLES[tool.id] && (
                 <button
                   onClick={loadExample}
-                  className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-blue-400 px-2 py-1 rounded transition-colors border border-zinc-700"
+                  className="flex items-center gap-1.5 text-xs bg-[#27272a] hover:bg-[#3f3f46] text-blue-400 px-2 py-1 rounded transition-colors border border-white/10"
                 >
                   <Sparkles size={12} /> Load Example
                 </button>
@@ -347,7 +347,7 @@ ${subnets.join('\n')}`;
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 w-full bg-zinc-950/50 text-zinc-200 rounded-lg p-4 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-blue-600/50 focus:border-blue-500/50 font-mono text-sm resize-y min-h-[400px] placeholder:text-zinc-600"
+              className="flex-1 w-full bg-[#09090b] text-zinc-200 rounded-lg p-4 border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono text-sm resize-y min-h-[400px] placeholder:text-zinc-600"
               placeholder={
                   tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
                     ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
@@ -382,19 +382,19 @@ ${subnets.join('\n')}`;
 
           <div className="flex flex-col space-y-2 h-full">
             <div className="flex justify-between items-center">
-              <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                 Output
               </label>
               {output && (
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1 rounded transition-colors border border-zinc-700"
+                  className="flex items-center gap-1.5 text-xs bg-[#27272a] hover:bg-[#3f3f46] text-zinc-300 px-2 py-1 rounded transition-colors border border-white/10"
                 >
                   {copied ? <span className="text-green-400">Copied!</span> : <><Copy size={12} /> Copy</>}
                 </button>
               )}
             </div>
-            <div className="flex-1 w-full bg-zinc-950/50 text-zinc-200 rounded-lg p-4 border border-zinc-800 font-mono text-sm overflow-auto relative group resize-y min-h-[400px] whitespace-pre-wrap">
+            <div className="flex-1 w-full bg-[#09090b] text-zinc-200 rounded-lg p-4 border border-white/10 font-mono text-sm overflow-auto relative group resize-y min-h-[400px] whitespace-pre-wrap">
               {error ? (
                 <div className="text-red-400">{error}</div>
               ) : (
@@ -404,10 +404,10 @@ ${subnets.join('\n')}`;
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-zinc-800 flex-shrink-0">
+        <div className="flex justify-end gap-3 pt-4 border-t border-white/10 flex-shrink-0">
           <button
             onClick={handleClear}
-            className="px-4 py-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-zinc-400 hover:text-white hover:bg-[#27272a] rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >
             <Trash2 size={16} />
             Clear
@@ -415,7 +415,7 @@ ${subnets.join('\n')}`;
           <button
             onClick={handleConvert}
             disabled={isLoading}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center gap-2"
+            className="px-6 py-2 bg-blue-500 hover:bg-blue-400 disabled:bg-blue-800 disabled:text-zinc-500 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-500/20 transition-all transform active:scale-95 flex items-center gap-2"
           >
             {isLoading ? 'Running...' : 'Run Tool'}
           </button>

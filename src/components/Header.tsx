@@ -16,27 +16,27 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 sticky top-0 z-50 h-16 flex-shrink-0">
+    <header className="bg-[#09090b]/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 h-16 flex-shrink-0">
       <div className="h-full px-6 flex justify-between items-center">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg shadow-lg shadow-blue-900/20 flex items-center justify-center text-white font-bold text-lg">
+          <div className="w-8 h-8 bg-blue-500 rounded-lg shadow-lg shadow-blue-500/20 flex items-center justify-center text-white font-bold text-lg">
             T
           </div>
           <div>
-            <h1 className="text-lg font-bold text-zinc-100 leading-none">{t('nav.title')}</h1>
+            <h1 className="text-lg font-bold text-white leading-none">{t('nav.title')}</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-zinc-800/50 rounded-md p-1.5 border border-zinc-700/50">
+          <div className="flex items-center gap-2 bg-zinc-800/50 rounded-md p-1.5 border border-white/10">
             <Globe size={16} className="text-zinc-400 ml-1" />
             <select
               value={locale}
               onChange={(e) => handleLanguageChange(e.target.value)}
               className="bg-transparent text-zinc-200 text-sm rounded px-1 py-0.5 border-0 focus:outline-none focus:ring-0 cursor-pointer hover:text-white"
             >
-              <option value="en" className="bg-zinc-900">English</option>
-              <option value="zh" className="bg-zinc-900">中文</option>
+              <option value="en" className="bg-[#09090b]">English</option>
+              <option value="zh" className="bg-[#09090b]">中文</option>
             </select>
           </div>
         </div>
