@@ -173,13 +173,79 @@ export const colorTools = {
   },
 
   generatePalette: (baseColor: string): string => {
-    // Simple logic: lighter and darker variants
-    // Assume input is HEX
-    return `Base: ${baseColor}\n(Palette generation requires more complex logic, returning placeholder)`;
+    // Helper to adjust brightness
+    const adjust = (hex: string, amount: number) => {
+      let color = hex.replace('#', '');
+      if (color.length === 3) color = color.split('').map(c => c + c).join('');
+      const num = parseInt(color, 16);
+      let r = (num >> 16) + amount;
+      let g = ((num >> 8) & 0x00FF) + amount;
+      let b = (num & 0x0000FF) + amount;
+      
+      r = Math.max(0, Math.min(255, r));
+      g = Math.max(0, Math.min(255, g));
+      b = Math.max(0, Math.min(255, b));
+      
+      return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    };
+
+    if (!/^#([0-9A-F]{3}){1,2}$/i.test(baseColor)) return 'Invalid Hex Color';
+
+    const shades = [
+      adjust(baseColor, 40),
+      adjust(baseColor, 20),
+      baseColor,
+      adjust(baseColor, -20),
+      adjust(baseColor, -40)
+    ];
+
+    return `Palette for ${baseColor}:
+Lighter: ${shades[0]}
+Light:   ${shades[1]}
+Base:    ${shades[2]}
+Dark:    ${shades[3]}
+Darker:  ${shades[4]}`;
   },
 
   checkContrast: (color1: string, color2: string): string => {
-    return `Contrast check between ${color1} and ${color2}: (Calculation logic pending)`;
+    const getLuminance = (hex: string) => {
+      let color = hex.replace('#', '');
+      if (color.length === 3) color = color.split('').map(c => c + c).join('');
+      const rgb = parseInt(color, 16);
+      const r = (rgb >> 16) & 0xff;
+      const g = (rgb >> 8) & 0xff;
+      const b = (rgb >> 0) & 0xff;
+
+      const [lr, lg, lb] = [r, g, b].map(c => {
+        const v = c / 255;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * lr + 0.7152 * lg + 0.0722 * lb;
+    };
+
+    try {
+      if (!/^#([0-9A-F]{3}){1,2}$/i.test(color1) || !/^#([0-9A-F]{3}){1,2}$/i.test(color2)) {
+        return 'Invalid Hex Colors';
+      }
+
+      const l1 = getLuminance(color1);
+      const l2 = getLuminance(color2);
+      const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+      const roundedRatio = ratio.toFixed(2);
+
+      let level = 'Fail';
+      if (ratio >= 7) level = 'AAA (Excellent)';
+      else if (ratio >= 4.5) level = 'AA (Good)';
+      else if (ratio >= 3) level = 'AA Large (Passable for large text)';
+
+      return `Contrast Ratio: ${roundedRatio}:1
+Level: ${level}
+
+Luminance 1: ${l1.toFixed(3)}
+Luminance 2: ${l2.toFixed(3)}`;
+    } catch (e) {
+      return 'Error calculating contrast';
+    }
   }
 };
 
