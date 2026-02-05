@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import whois from 'whois';
+import { lookup } from 'whois';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await new Promise<string>((resolve, reject) => {
-      whois.lookup(domain, (err, data) => {
+      lookup(domain, (err, data) => {
         if (err) reject(err);
         else resolve(data);
       });
