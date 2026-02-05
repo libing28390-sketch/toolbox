@@ -94,6 +94,41 @@ AS: ${ipData.as}`;
           const dnsData = await networkTools.lookupDns(input);
           result = JSON.stringify(dnsData, null, 2);
           break;
+        case 'mac-lookup':
+          const macData = await networkTools.lookupMac(input);
+          result = `Vendor: ${macData.vendor}`;
+          break;
+        case 'ua-parser':
+          const uaString = input.trim() || navigator.userAgent;
+          const uaData = networkTools.parseUserAgent(uaString);
+          result = `Browser: ${uaData.browser.name || 'Unknown'} ${uaData.browser.version || ''}
+OS: ${uaData.os.name || 'Unknown'} ${uaData.os.version || ''}
+Device: ${uaData.device.vendor || 'PC'} ${uaData.device.model || ''} ${uaData.device.type || ''}
+CPU: ${uaData.cpu.architecture || 'Unknown'}
+Engine: ${uaData.engine.name || ''} ${uaData.engine.version || ''}`;
+          break;
+        case 'ssl-checker':
+          const sslData = await networkTools.checkSsl(input);
+          result = `Subject: ${sslData.subject.CN || JSON.stringify(sslData.subject)}
+Issuer: ${sslData.issuer.CN || JSON.stringify(sslData.issuer)}
+Valid From: ${sslData.valid_from}
+Valid To: ${sslData.valid_to}
+Days Remaining: ${sslData.days_remaining}
+Protocol: ${sslData.protocol}
+Cipher: ${sslData.cipher.name}`;
+          break;
+        case 'http-headers':
+          const headersData = await networkTools.checkHeaders(input);
+          result = `Status: ${headersData.status} ${headersData.statusText}
+
+Headers:
+${Object.entries(headersData.headers).map(([k, v]) => `${k}: ${v}`).join('\n')}`;
+          break;
+        case 'cidr-calc':
+          const subnets = networkTools.calculateCidrSplit(input);
+          result = `Split Result (Next Level):
+${subnets.join('\n')}`;
+          break;
         default:
           result = '此工具即将推出';
       }
@@ -142,10 +177,16 @@ AS: ${ipData.as}`;
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 min-h-[300px] bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
               placeholder={
-                tool.id === 'ip-subnet-calculator' 
-                  ? "Enter IP address (e.g., 192.168.1.1 or 192.168.1.1/24)" 
-                  : "Paste your content here..."
-              }
+                 tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
+                   ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
+                   : tool.id === 'mac-lookup'
+                   ? "Enter MAC Address (e.g., 00:1A:2B:3C:4D:5E)"
+                   : tool.id === 'ua-parser'
+                   ? "Paste User-Agent String (leave empty to analyze your current browser)"
+                   : tool.id === 'ssl-checker' || tool.id === 'http-headers' || tool.id === 'whois' || tool.id === 'dns-lookup'
+                   ? "Enter Domain or URL (e.g., google.com)"
+                   : "Paste your content here..."
+               }
             />
           </div>
 

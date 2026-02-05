@@ -1,4 +1,5 @@
 import ipaddr from 'ipaddr.js';
+import UAParser from 'ua-parser-js';
 
 export interface SubnetResult {
   ip: string;
@@ -79,6 +80,99 @@ export const networkTools = {
       throw new Error(error.error || 'DNS Lookup failed');
     }
     return response.json();
+  },
+
+  async lookupMac(mac: string) {
+    const response = await fetch('/api/tools/mac', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mac }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'MAC Lookup failed');
+    }
+    return response.json();
+  },
+
+  async checkSsl(domain: string) {
+    const response = await fetch('/api/tools/ssl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'SSL Check failed');
+    }
+    return response.json();
+  },
+
+  async checkHeaders(url: string) {
+    const response = await fetch('/api/tools/headers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Headers Check failed');
+    }
+    return response.json();
+  },
+
+  parseUserAgent(ua: string) {
+    const parser = new UAParser(ua);
+    return parser.getResult();
+  },
+
+  calculateCidrSplit(input: string): string[] {
+    const parts = input.trim().split('/');
+    if (parts.length !== 2) throw new Error('Invalid CIDR format (e.g. 192.168.1.0/24)');
+    
+    const ip = parts[0];
+    const cidr = parseInt(parts[1], 10);
+
+    if (!ipaddr.isValid(ip)) throw new Error('Invalid IP address');
+    const addr = ipaddr.parse(ip);
+
+    if (addr.kind() === 'ipv4') {
+      if (cidr >= 32) throw new Error('Cannot split /32');
+      const newCidr = cidr + 1;
+      
+      // First subnet is the original network address
+      const net1 = ipaddr.IPv4.networkAddressFromCIDR(input);
+      
+      // Second subnet is network + size/2
+      // size = 2^(32-cidr)
+      // half size = 2^(32-cidr-1) = 2^(32-newCidr)
+      const increment = Math.pow(2, 32 - newCidr);
+      
+      const net1Bytes = net1.toByteArray();
+      let net2Val = (net1Bytes[0] << 24) | (net1Bytes[1] << 16) | (net1Bytes[2] << 8) | net1Bytes[3];
+      // Need unsigned shift
+      net2Val = (net2Val + increment) >>> 0;
+      
+      const net2Bytes = [
+        (net2Val >>> 24) & 0xFF,
+        (net2Val >>> 16) & 0xFF,
+        (net2Val >>> 8) & 0xFF,
+        net2Val & 0xFF
+      ];
+      
+      const net2 = new ipaddr.IPv4(net2Bytes);
+      
+      return [
+        `${net1.toString()}/${newCidr}`,
+        `${net2.toString()}/${newCidr}`
+      ];
+    } else {
+      // IPv6 split
+      if (cidr >= 128) throw new Error('Cannot split /128');
+      const newCidr = cidr + 1;
+      // IPv6 math is hard with JS numbers. Just return text for now.
+      return [`IPv6 split not fully supported yet`];
+    }
   }
 };
 

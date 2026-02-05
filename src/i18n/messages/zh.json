@@ -49,7 +49,12 @@
     "ipSubnetCalculator": "IP 子网计算",
     "ipLookup": "IP 查询",
     "whois": "WHOIS 查询",
-    "dnsLookup": "DNS 查询"
+    "dnsLookup": "DNS 查询",
+    "macLookup": "MAC 地址查询",
+    "uaParser": "User-Agent 分析",
+    "sslChecker": "SSL 证书检测",
+    "httpHeaders": "HTTP 响应头检测",
+    "cidrCalc": "CIDR 聚合/拆分"
   },
   "buttons": {
     "convert": "转换",

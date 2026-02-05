@@ -61,5 +61,10 @@ export const toolsData: Tool[][] = [
     { id: 'ip-lookup', nameKey: 'tools.ipLookup', categoryKey: 'categories.networkTools', icon: '🌐' },
     { id: 'whois', nameKey: 'tools.whois', categoryKey: 'categories.networkTools', icon: '📋' },
     { id: 'dns-lookup', nameKey: 'tools.dnsLookup', categoryKey: 'categories.networkTools', icon: '🔎' },
+    { id: 'mac-lookup', nameKey: 'tools.macLookup', categoryKey: 'categories.networkTools', icon: '🏷️' },
+    { id: 'ua-parser', nameKey: 'tools.uaParser', categoryKey: 'categories.networkTools', icon: '🖥️' },
+    { id: 'ssl-checker', nameKey: 'tools.sslChecker', categoryKey: 'categories.networkTools', icon: '🔒' },
+    { id: 'http-headers', nameKey: 'tools.httpHeaders', categoryKey: 'categories.networkTools', icon: '📑' },
+    { id: 'cidr-calc', nameKey: 'tools.cidrCalc', categoryKey: 'categories.networkTools', icon: '🧮' },
   ],
 ];

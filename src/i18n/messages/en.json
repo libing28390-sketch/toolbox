@@ -49,7 +49,12 @@
     "ipSubnetCalculator": "IP Subnet Calculator",
     "ipLookup": "IP Lookup",
     "whois": "WHOIS Lookup",
-    "dnsLookup": "DNS Lookup"
+    "dnsLookup": "DNS Lookup",
+    "macLookup": "MAC Address Lookup",
+    "uaParser": "User-Agent Parser",
+    "sslChecker": "SSL Certificate Checker",
+    "httpHeaders": "HTTP Headers Checker",
+    "cidrCalc": "CIDR Calculator"
   },
   "buttons": {
     "convert": "Convert",
