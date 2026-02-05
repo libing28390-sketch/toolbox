@@ -16,6 +16,7 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleConvert = async () => {
