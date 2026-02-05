@@ -40,6 +40,45 @@ export const networkTools = {
     } else {
       return calculateIPv6(addr as ipaddr.IPv6, cidr);
     }
+  },
+
+  async lookupIp(ip: string) {
+    const response = await fetch('/api/tools/ip', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'IP Lookup failed');
+    }
+    return response.json();
+  },
+
+  async lookupWhois(domain: string) {
+    const response = await fetch('/api/tools/whois', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'WHOIS Lookup failed');
+    }
+    return response.json();
+  },
+
+  async lookupDns(domain: string) {
+    const response = await fetch('/api/tools/dns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'DNS Lookup failed');
+    }
+    return response.json();
   }
 };
 

@@ -16,11 +16,12 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleConvert = () => {
+  const handleConvert = async () => {
     setError('');
     setCopied(false);
+    setIsLoading(true);
     
     try {
       let result = '';
@@ -70,6 +71,18 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
             `Usable Hosts: ${info.usableHosts}`
           ].filter(Boolean).join('\n');
           break;
+        case 'ip-lookup':
+          const ipData = await networkTools.lookupIp(input);
+          result = JSON.stringify(ipData, null, 2);
+          break;
+        case 'whois':
+          const whoisData = await networkTools.lookupWhois(input);
+          result = whoisData.data;
+          break;
+        case 'dns-lookup':
+          const dnsData = await networkTools.lookupDns(input);
+          result = JSON.stringify(dnsData, null, 2);
+          break;
         default:
           result = '此工具即将推出';
       }
@@ -77,6 +90,8 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
       setOutput(result);
     } catch (err: any) {
       setError(err.message || '发生错误');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -157,9 +172,10 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
           </button>
           <button
             onClick={handleConvert}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center gap-2"
+            disabled={isLoading}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:text-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold shadow-lg shadow-blue-900/20 transition-all transform active:scale-95 flex items-center gap-2"
           >
-            Run Tool
+            {isLoading ? 'Running...' : 'Run Tool'}
           </button>
         </div>
       </div>
