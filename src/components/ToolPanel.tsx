@@ -293,7 +293,7 @@ ${subnets.join('\n')}`;
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
+              className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-y min-h-[400px]"
               placeholder={
                   tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
                     ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
@@ -334,7 +334,7 @@ ${subnets.join('\n')}`;
                 </button>
               )}
             </div>
-            <div className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group">
+            <div className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group resize-y min-h-[400px]">
               {error ? (
                 <div className="text-red-400">{error}</div>
               ) : (

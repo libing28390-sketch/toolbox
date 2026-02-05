@@ -33,7 +33,7 @@ export default function Home() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto bg-slate-950 relative transition-all duration-300">
-          <div className="max-w-5xl mx-auto p-6 md:p-12">
+          <div className="max-w-7xl mx-auto p-4 md:p-6 h-full flex flex-col">
             {selectedTool ? (
               <ToolPanel tool={toolsData.flat().find(t => t.id === selectedTool)!} />
             ) : (
