@@ -15,6 +15,7 @@
     "networkTools": "Network Tools"
   },
   "tools": {
+    "jsonVisualizer": "JSON Visualizer",
     "jsonFormatter": "JSON Formatter",
     "xmlFormatter": "XML Formatter",
     "codePrettify": "Code Beautifier",
