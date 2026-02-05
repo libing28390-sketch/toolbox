@@ -317,11 +317,11 @@ ${subnets.join('\n')}`;
   };
 
   return (
-    <div className="bg-[#161618] backdrop-blur-sm rounded-xl border border-white/10 shadow-xl overflow-hidden flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
-      <div className="p-6 border-b border-white/10 flex justify-between items-start flex-shrink-0 bg-[#161618]">
+    <div className="bg-[#202024] backdrop-blur-sm rounded-xl border border-white/10 shadow-xl overflow-hidden flex flex-col h-full animate-in fade-in zoom-in-95 duration-300">
+      <div className="p-6 border-b border-white/10 flex justify-between items-start flex-shrink-0 bg-[#202024]">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            <span className="text-3xl p-2 bg-[#09090b] rounded-lg text-blue-500 border border-white/5">{tool.icon}</span> 
+            <span className="text-3xl p-2 bg-[#121214] rounded-lg text-blue-500 border border-white/5">{tool.icon}</span> 
             {t(tool.nameKey as any)}
           </h2>
           <p className="text-zinc-400 text-sm mt-1 ml-14">{t(tool.categoryKey as any)}</p>
@@ -338,7 +338,7 @@ ${subnets.join('\n')}`;
               {TOOL_EXAMPLES[tool.id] && (
                 <button
                   onClick={loadExample}
-                  className="flex items-center gap-1.5 text-xs bg-[#27272a] hover:bg-[#3f3f46] text-blue-400 px-2 py-1 rounded transition-colors border border-white/10"
+                  className="flex items-center gap-1.5 text-xs bg-[#2e2e33] hover:bg-[#3f3f46] text-blue-400 px-2 py-1 rounded transition-colors border border-white/10"
                 >
                   <Sparkles size={12} /> Load Example
                 </button>
@@ -347,7 +347,7 @@ ${subnets.join('\n')}`;
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 w-full bg-[#09090b] text-zinc-200 rounded-lg p-4 border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono text-sm resize-y min-h-[400px] placeholder:text-zinc-600"
+              className="flex-1 w-full bg-[#121214] text-zinc-200 rounded-lg p-4 border border-white/10 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 font-mono text-sm resize-y min-h-[400px] placeholder:text-zinc-600"
               placeholder={
                   tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
                     ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
@@ -388,13 +388,13 @@ ${subnets.join('\n')}`;
               {output && (
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 text-xs bg-[#27272a] hover:bg-[#3f3f46] text-zinc-300 px-2 py-1 rounded transition-colors border border-white/10"
+                  className="flex items-center gap-1.5 text-xs bg-[#2e2e33] hover:bg-[#3f3f46] text-zinc-300 px-2 py-1 rounded transition-colors border border-white/10"
                 >
                   {copied ? <span className="text-green-400">Copied!</span> : <><Copy size={12} /> Copy</>}
                 </button>
               )}
             </div>
-            <div className="flex-1 w-full bg-[#09090b] text-zinc-200 rounded-lg p-4 border border-white/10 font-mono text-sm overflow-auto relative group resize-y min-h-[400px] whitespace-pre-wrap">
+            <div className="flex-1 w-full bg-[#121214] text-zinc-200 rounded-lg p-4 border border-white/10 font-mono text-sm overflow-auto relative group resize-y min-h-[400px] whitespace-pre-wrap">
               {error ? (
                 <div className="text-red-400">{error}</div>
               ) : (
@@ -407,7 +407,7 @@ ${subnets.join('\n')}`;
         <div className="flex justify-end gap-3 pt-4 border-t border-white/10 flex-shrink-0">
           <button
             onClick={handleClear}
-            className="px-4 py-2 text-zinc-400 hover:text-white hover:bg-[#27272a] rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-2 text-zinc-400 hover:text-white hover:bg-[#2e2e33] rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
           >
             <Trash2 size={16} />
             Clear
