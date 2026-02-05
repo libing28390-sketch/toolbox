@@ -12,20 +12,33 @@ export default function Home() {
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <main className="flex flex-col h-screen bg-slate-950 overflow-hidden">
       <Header />
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <ToolGrid tools={toolsData} onSelectTool={setSelectedTool} />
-          </div>
-          <div className="lg:col-span-3">
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-64 flex-shrink-0 z-10">
+          <ToolGrid 
+            tools={toolsData} 
+            onSelectTool={setSelectedTool} 
+            selectedToolId={selectedTool}
+          />
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto bg-slate-950 relative">
+          <div className="max-w-5xl mx-auto p-6 md:p-12">
             {selectedTool ? (
               <ToolPanel tool={toolsData.flat().find(t => t.id === selectedTool)!} />
             ) : (
-              <div className="bg-slate-700 rounded-lg p-8 text-center text-slate-300">
-                <h2 className="text-2xl font-bold mb-4">{t('nav.subtitle')}</h2>
-                <p>{t('messages.inputRequired')}</p>
+              <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+                <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center mb-4 border border-slate-800">
+                  <span className="text-4xl">🛠️</span>
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-3xl font-bold text-slate-200">{t('nav.subtitle')}</h2>
+                  <p className="text-slate-400 max-w-md mx-auto">{t('messages.inputRequired')}</p>
+                </div>
+                <p className="text-sm text-slate-600">Select a tool from the sidebar to get started</p>
               </div>
             )}
           </div>

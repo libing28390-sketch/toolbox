@@ -16,29 +16,28 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="text-2xl font-bold text-blue-400">⚙️</div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">{t('nav.title')}</h1>
-              <p className="text-sm text-slate-400">{t('nav.subtitle')}</p>
-            </div>
+    <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 h-16 flex-shrink-0">
+      <div className="h-full px-6 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white font-bold text-lg">
+            T
           </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-700 rounded-lg p-2">
-              <Globe size={18} className="text-slate-400" />
-              <select
-                value={locale}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                className="bg-slate-700 text-white text-sm rounded px-2 py-1 border-0 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="en">English</option>
-                <option value="zh">中文</option>
-              </select>
-            </div>
+          <div>
+            <h1 className="text-lg font-bold text-white leading-none">{t('nav.title')}</h1>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-slate-800 rounded-md p-1.5 border border-slate-700">
+            <Globe size={16} className="text-slate-400 ml-1" />
+            <select
+              value={locale}
+              onChange={(e) => handleLanguageChange(e.target.value)}
+              className="bg-transparent text-slate-200 text-sm rounded px-1 py-0.5 border-0 focus:outline-none focus:ring-0 cursor-pointer hover:text-white"
+            >
+              <option value="en" className="bg-slate-800">English</option>
+              <option value="zh" className="bg-slate-800">中文</option>
+            </select>
           </div>
         </div>
       </div>
