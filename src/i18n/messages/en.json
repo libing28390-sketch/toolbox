@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "title": "ToolBox",
+    "subtitle": "Developer Tools",
+    "language": "Language"
+  },
+  "categories": {
+    "codeTools": "Code Tools",
+    "encodingTools": "Encoding Tools",
+    "timeTools": "Time Tools",
+    "colorTools": "Color Tools",
+    "textTools": "Text Tools",
+    "dataTools": "Data Tools",
+    "dataProcessing": "Data Processing",
+    "networkTools": "Network Tools"
+  },
+  "tools": {
+    "jsonFormatter": "JSON Formatter",
+    "xmlFormatter": "XML Formatter",
+    "codePrettify": "Code Beautifier",
+    "codeMinify": "Code Minifier",
+    "urlEncode": "URL Encoder/Decoder",
+    "base64": "Base64 Converter",
+    "md5": "MD5 Hash",
+    "sha": "SHA Hash",
+    "uuid": "UUID Generator",
+    "timestamp": "Unix Timestamp",
+    "timezone": "Timezone Converter",
+    "countdown": "Countdown Timer",
+    "colorConverter": "Color Converter",
+    "colorPalette": "Color Palette",
+    "contrastCheck": "Contrast Checker",
+    "caseConverter": "Case Converter",
+    "simplifiedChinese": "Simplified/Traditional Chinese",
+    "emojiConverter": "Emoji Converter",
+    "wordCount": "Word Counter",
+    "densityAnalysis": "Density Analysis",
+    "repeatCheck": "Duplicate Detector",
+    "regex": "Regex Tester",
+    "extractReplace": "Extract/Replace Tool",
+    "csvToJson": "CSV to JSON",
+    "excelPreview": "Excel Preview",
+    "markdownEditor": "Markdown Editor",
+    "mockData": "Mock Data Generator",
+    "randomGenerator": "Random Generator",
+    "apiTester": "API Tester",
+    "jsonTree": "JSON Tree Viewer",
+    "dataAnalysis": "Data Analysis",
+    "ipLookup": "IP Lookup",
+    "whois": "WHOIS Lookup",
+    "dnsLookup": "DNS Lookup"
+  },
+  "buttons": {
+    "convert": "Convert",
+    "clear": "Clear",
+    "copy": "Copy",
+    "download": "Download",
+    "generate": "Generate",
+    "test": "Test",
+    "analyze": "Analyze"
+  },
+  "messages": {
+    "copied": "Copied to clipboard!",
+    "error": "An error occurred",
+    "inputRequired": "Please enter input",
+    "success": "Success!"
+  }
+}

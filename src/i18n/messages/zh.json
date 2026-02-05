@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "title": "工具箱",
+    "subtitle": "开发者工具",
+    "language": "语言"
+  },
+  "categories": {
+    "codeTools": "代码工具",
+    "encodingTools": "编码工具",
+    "timeTools": "时间工具",
+    "colorTools": "颜色工具",
+    "textTools": "文本工具",
+    "dataTools": "数据工具",
+    "dataProcessing": "数据处理",
+    "networkTools": "网络工具"
+  },
+  "tools": {
+    "jsonFormatter": "JSON 格式化",
+    "xmlFormatter": "XML 格式化",
+    "codePrettify": "代码美化",
+    "codeMinify": "代码压缩",
+    "urlEncode": "URL 编码/解码",
+    "base64": "Base64 转换",
+    "md5": "MD5 哈希",
+    "sha": "SHA 哈希",
+    "uuid": "UUID 生成器",
+    "timestamp": "Unix 时间戳",
+    "timezone": "时区转换",
+    "countdown": "倒计时",
+    "colorConverter": "色值转换",
+    "colorPalette": "调色板生成",
+    "contrastCheck": "对比度检查",
+    "caseConverter": "大小写转换",
+    "simplifiedChinese": "繁简体转换",
+    "emojiConverter": "表情符号转换",
+    "wordCount": "字数统计",
+    "densityAnalysis": "密度分析",
+    "repeatCheck": "重复值检测",
+    "regex": "正则表达式测试",
+    "extractReplace": "提取/替换工具",
+    "csvToJson": "CSV 转 JSON",
+    "excelPreview": "Excel 预览",
+    "markdownEditor": "Markdown 编辑器",
+    "mockData": "Mock 数据生成",
+    "randomGenerator": "随机生成器",
+    "apiTester": "API 测试工具",
+    "jsonTree": "JSON 树形图",
+    "dataAnalysis": "数据表分析",
+    "ipLookup": "IP 查询",
+    "whois": "WHOIS 查询",
+    "dnsLookup": "DNS 查询"
+  },
+  "buttons": {
+    "convert": "转换",
+    "clear": "清空",
+    "copy": "复制",
+    "download": "下载",
+    "generate": "生成",
+    "test": "测试",
+    "analyze": "分析"
+  },
+  "messages": {
+    "copied": "已复制到剪贴板！",
+    "error": "发生错误",
+    "inputRequired": "请输入内容",
+    "success": "成功！"
+  }
+}
