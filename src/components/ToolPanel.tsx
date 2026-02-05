@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Copy, Download, Trash2 } from 'lucide-react';
 import { Tool } from '@/data/tools';
 import { codeTools, encodingTools, timeTools, colorTools, textTools } from '@/lib/tools';
+import { networkTools } from '@/lib/network-tools';
 
 interface ToolPanelProps {
   tool: Tool;
@@ -56,6 +57,19 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
             result = colorTools.rgbToHex(input);
           }
           break;
+        case 'ip-subnet-calculator':
+          const info = networkTools.calculateSubnet(input);
+          result = [
+            `Type: ${info.type}`,
+            `CIDR: /${info.cidr}`,
+            `Network: ${info.networkAddress}`,
+            `Mask: ${info.subnetMask}`,
+            info.broadcastAddress ? `Broadcast: ${info.broadcastAddress}` : null,
+            `Range: ${info.firstUsable || 'N/A'} - ${info.lastUsable || 'N/A'}`,
+            `Total Hosts: ${info.totalHosts}`,
+            `Usable Hosts: ${info.usableHosts}`
+          ].filter(Boolean).join('\n');
+          break;
         default:
           result = '此工具即将推出';
       }
@@ -101,7 +115,11 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 min-h-[300px] bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
-              placeholder="Paste your content here..."
+              placeholder={
+                tool.id === 'ip-subnet-calculator' 
+                  ? "Enter IP address (e.g., 192.168.1.1 or 192.168.1.1/24)" 
+                  : "Paste your content here..."
+              }
             />
           </div>
 

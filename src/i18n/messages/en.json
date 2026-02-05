@@ -46,6 +46,7 @@
     "apiTester": "API Tester",
     "jsonTree": "JSON Tree Viewer",
     "dataAnalysis": "Data Analysis",
+    "ipSubnetCalculator": "IP Subnet Calculator",
     "ipLookup": "IP Lookup",
     "whois": "WHOIS Lookup",
     "dnsLookup": "DNS Lookup"

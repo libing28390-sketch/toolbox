@@ -46,6 +46,7 @@
     "apiTester": "API 测试工具",
     "jsonTree": "JSON 树形图",
     "dataAnalysis": "数据表分析",
+    "ipSubnetCalculator": "IP 子网计算",
     "ipLookup": "IP 查询",
     "whois": "WHOIS 查询",
     "dnsLookup": "DNS 查询"
