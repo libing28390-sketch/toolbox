@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Domain is required' }, { status: 400 });
     }
 
-    const result = await new Promise<string>((resolve, reject) => {
+    const result = await new Promise<any>((resolve, reject) => {
       lookup(domain, (err, data) => {
         if (err) reject(err);
         else resolve(data);
