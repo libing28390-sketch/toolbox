@@ -12,6 +12,7 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
   Panel,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
@@ -51,8 +52,8 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
     // so it matches the React Flow node anchor point (top left).
     return {
       ...node,
-      targetPosition: isHorizontal ? 'left' : 'top',
-      sourcePosition: isHorizontal ? 'right' : 'bottom',
+      targetPosition: isHorizontal ? Position.Left : Position.Top,
+      sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
       position: {
         x: nodeWithPosition.x - nodeWidth / 2,
         y: nodeWithPosition.y - nodeHeight / 2,
@@ -74,7 +75,7 @@ const processJson = (data: any): { nodes: Node[]; edges: Edge[] } => {
     
     // Determine content label
     let content = '';
-    let type = typeof obj;
+    let type: string = typeof obj; // Explicitly type as string
     
     if (obj === null) {
       content = 'null';
