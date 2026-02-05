@@ -1,3 +1,8 @@
+import * as OpenCC from 'opencc-js';
+import CryptoJS from 'crypto-js';
+import { v4 as uuidv4 } from 'uuid';
+import { marked } from 'marked';
+
 // 代码工具函数
 export const codeTools = {
   formatJSON: (input: string): string => {
@@ -82,6 +87,18 @@ export const encodingTools = {
   base64Decode: (input: string): string => {
     return decodeURIComponent(escape(atob(input)));
   },
+
+  md5: (input: string): string => {
+    return CryptoJS.MD5(input).toString();
+  },
+
+  sha: (input: string): string => {
+    return CryptoJS.SHA256(input).toString();
+  },
+
+  uuid: (): string => {
+    return uuidv4();
+  },
 };
 
 // 时间工具函数
@@ -130,12 +147,114 @@ export const colorTools = {
 export const textTools = {
   toUpperCase: (input: string): string => input.toUpperCase(),
   toLowerCase: (input: string): string => input.toLowerCase(),
-  
-  wordCount: (input: string): number => {
-    return input.trim().split(/\s+/).filter(w => w.length > 0).length;
-  },
 
   charCount: (input: string): number => {
     return input.length;
   },
+
+  wordCount: (input: string): number => {
+    const clean = input.replace(/[^\w\s\u4e00-\u9fa5]/g, '');
+    return clean.trim().split(/\s+/).filter(Boolean).length;
+  },
+
+  convertChinese: async (input: string, type: 's2t' | 't2s'): Promise<string> => {
+    const converter = OpenCC.Converter({ from: type === 's2t' ? 'cn' : 'hk', to: type === 's2t' ? 'hk' : 'cn' });
+    return converter(input);
+  },
+
+  convertEmoji: (input: string): string => {
+    const map: Record<string, string> = {
+      ':smile:': '😀',
+      ':laugh:': '😂',
+      ':sad:': '😢',
+      ':cry:': '😭',
+      ':love:': '❤️',
+      ':thumbsup:': '👍',
+      ':thumbsdown:': '👎',
+      ':check:': '✅',
+      ':x:': '❌',
+      ':fire:': '🔥',
+      ':star:': '⭐',
+      ':rocket:': '🚀',
+    };
+    return input.replace(/:[a-z0-9_]+:/g, (match) => map[match] || match);
+  },
+
+  analyzeDensity: (input: string): string => {
+    const words = input.toLowerCase().match(/\b\w+\b/g) || [];
+    const total = words.length;
+    if (total === 0) return 'No words found';
+
+    const counts: Record<string, number> = {};
+    words.forEach(w => counts[w] = (counts[w] || 0) + 1);
+
+    const sorted = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20);
+
+    return sorted.map(([word, count]) => {
+      const percentage = ((count / total) * 100).toFixed(2);
+      return `${word}: ${count} (${percentage}%)`;
+    }).join('\n');
+  },
+
+  removeDuplicates: (input: string): string => {
+    const lines = input.split('\n');
+    const unique = new Set(lines);
+    return Array.from(unique).join('\n');
+  },
+
+  testRegex: (input: string, regexStr: string, flags: string = 'g'): string => {
+    try {
+      const regex = new RegExp(regexStr, flags);
+      const matches = input.match(regex);
+      if (!matches) return 'No matches found';
+      return `Found ${matches.length} matches:\n` + matches.join('\n');
+    } catch (e: any) {
+      return `Invalid Regex: ${e.message}`;
+    }
+  },
+
+  extractReplace: (input: string, regexStr: string, replaceStr: string): string => {
+    try {
+      const regex = new RegExp(regexStr, 'g');
+      return input.replace(regex, replaceStr);
+    } catch (e: any) {
+      return `Invalid Regex: ${e.message}`;
+    }
+  }
+};
+
+// 数据处理工具函数
+export const dataTools = {
+  csvToJson: (input: string): string => {
+    const lines = input.trim().split('\n');
+    if (lines.length < 2) return '[]';
+    const headers = lines[0].split(',').map(h => h.trim());
+    const result = lines.slice(1).map(line => {
+      const values = line.split(',');
+      const obj: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        obj[h] = values[i]?.trim() || '';
+      });
+      return obj;
+    });
+    return JSON.stringify(result, null, 2);
+  },
+
+  markdownToHtml: async (input: string): Promise<string> => {
+    return marked(input);
+  },
+
+  generateRandom: (length: number = 16, type: 'string' | 'number' = 'string'): string => {
+    if (type === 'number') {
+      return Math.floor(Math.random() * Math.pow(10, length)).toString();
+    }
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
 };

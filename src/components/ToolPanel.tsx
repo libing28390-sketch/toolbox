@@ -4,7 +4,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { useState } from 'react';
 import { Copy, Download, Trash2 } from 'lucide-react';
 import { Tool } from '@/data/tools';
-import { codeTools, encodingTools, timeTools, colorTools, textTools } from '@/lib/tools';
+import { codeTools, encodingTools, timeTools, colorTools, textTools, dataTools } from '@/lib/tools';
 import { networkTools } from '@/lib/network-tools';
 
 interface ToolPanelProps {
@@ -49,15 +49,75 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
             ? encodingTools.base64Decode(input)
             : encodingTools.base64Encode(input);
           break;
+        case 'md5':
+          result = encodingTools.md5(input);
+          break;
+        case 'sha':
+          result = encodingTools.sha(input);
+          break;
+        case 'uuid':
+          result = encodingTools.uuid();
+          break;
         case 'timestamp':
-          result = codeTools.formatJSON(input) // 作为占位符
-          result = encodingTools.urlEncode(input);
+          if (!input.trim()) {
+            result = `Current Timestamp: ${timeTools.getCurrentTimestamp()}`;
+          } else if (/^\d+$/.test(input.trim())) {
+            result = timeTools.timestampToDate(input.trim());
+          } else {
+            result = timeTools.dateToTimestamp(input);
+          }
           break;
         case 'case-converter':
-          result = textTools.toUpperCase(input); // 可以增加更多选项
+          result = textTools.toUpperCase(input); // Default to Upper, can add toggle later
+          break;
+        case 'simplified-chinese':
+          // Heuristic: check if input looks traditional (hard), or just provide toggle.
+          // For now, let's assume S2T default, or maybe provide buttons.
+          // Let's do S2T for now.
+          result = await textTools.convertChinese(input, 's2t');
+          break;
+        case 'emoji-converter':
+          result = textTools.convertEmoji(input);
           break;
         case 'word-count':
-          result = `字数: ${textTools.charCount(input)}\n词数: ${textTools.wordCount(input)}`;
+          result = `Characters: ${textTools.charCount(input)}\nWords: ${textTools.wordCount(input)}`;
+          break;
+        case 'density-analysis':
+          result = textTools.analyzeDensity(input);
+          break;
+        case 'repeat-check':
+          result = textTools.removeDuplicates(input);
+          break;
+        case 'regex':
+          // Regex tool needs 2 inputs (text + regex). 
+          // We can parse the input as "REGEX\n---\nTEXT" or just simple text for now.
+          // Let's assume input first line is regex.
+          const firstLine = input.split('\n')[0];
+          const rest = input.substring(firstLine.length + 1);
+          result = textTools.testRegex(rest, firstLine);
+          break;
+        case 'extract-replace':
+           // Needs 3 parts: Regex, Replace, Text.
+           // Format: /regex/replace/text...
+           // Or just assume: Line 1 = Regex, Line 2 = Replace, Rest = Text
+           const lines = input.split('\n');
+           if (lines.length < 3) {
+             result = "Error: Input format should be:\nRegex Pattern\nReplacement String\nText to process...";
+           } else {
+             const rRegex = lines[0];
+             const rReplace = lines[1];
+             const rText = input.substring(lines[0].length + lines[1].length + 2);
+             result = textTools.extractReplace(rText, rRegex, rReplace);
+           }
+           break;
+        case 'csv-to-json':
+          result = dataTools.csvToJson(input);
+          break;
+        case 'markdown-editor':
+          result = await dataTools.markdownToHtml(input);
+          break;
+        case 'random-generator':
+          result = dataTools.generateRandom(input ? parseInt(input) : 16);
           break;
         case 'color-converter':
           if (input.startsWith('#')) {
@@ -183,16 +243,28 @@ ${subnets.join('\n')}`;
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 min-h-[300px] bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
               placeholder={
-                 tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
-                   ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
-                   : tool.id === 'mac-lookup'
-                   ? "Enter MAC Address (e.g., 00:1A:2B:3C:4D:5E)"
-                   : tool.id === 'ua-parser'
-                   ? "Paste User-Agent String (leave empty to analyze your current browser)"
-                   : tool.id === 'ssl-checker' || tool.id === 'http-headers' || tool.id === 'whois' || tool.id === 'dns-lookup'
-                   ? "Enter Domain or URL (e.g., google.com)"
-                   : "Paste your content here..."
-               }
+                  tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
+                    ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
+                    : tool.id === 'mac-lookup'
+                    ? "Enter MAC Address (e.g., 00:1A:2B:3C:4D:5E)"
+                    : tool.id === 'ua-parser'
+                    ? "Paste User-Agent String (leave empty to analyze your current browser)"
+                    : tool.id === 'ssl-checker' || tool.id === 'http-headers' || tool.id === 'whois' || tool.id === 'dns-lookup'
+                    ? "Enter Domain or URL (e.g., google.com)"
+                    : tool.id === 'regex'
+                    ? "Enter Regex on Line 1\nThen content to test..."
+                    : tool.id === 'extract-replace'
+                    ? "Line 1: Regex Pattern\nLine 2: Replacement\nLine 3+: Text content..."
+                    : tool.id === 'csv-to-json'
+                    ? "Paste CSV content here..."
+                    : tool.id === 'markdown-editor'
+                    ? "Enter Markdown content..."
+                    : tool.id === 'random-generator'
+                    ? "Enter length (default 16)"
+                    : tool.id === 'emoji-converter'
+                    ? "Enter text with shortcodes (e.g. :smile:)"
+                    : "Paste your content here..."
+                }
             />
           </div>
 
