@@ -42,11 +42,11 @@ export const networkTools = {
     }
   },
 
-  async lookupIp(ip: string) {
+  async lookupIp(ip: string, lang: string = 'en') {
     const response = await fetch('/api/tools/ip', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ip }),
+      body: JSON.stringify({ ip, lang }),
     });
     if (!response.ok) {
       const error = await response.json();

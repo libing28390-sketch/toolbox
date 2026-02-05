@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { useState } from 'react';
 import { Copy, Download, Trash2 } from 'lucide-react';
 import { Tool } from '@/data/tools';
@@ -13,6 +13,7 @@ interface ToolPanelProps {
 
 export default function ToolPanel({ tool }: ToolPanelProps) {
   const t = useTranslations();
+  const locale = useLocale();
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
@@ -73,8 +74,17 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
           ].filter(Boolean).join('\n');
           break;
         case 'ip-lookup':
-          const ipData = await networkTools.lookupIp(input);
-          result = JSON.stringify(ipData, null, 2);
+          const ipData = await networkTools.lookupIp(input, locale);
+          result = `IP: ${ipData.query}
+Country: ${ipData.country} (${ipData.countryCode})
+Region: ${ipData.regionName} (${ipData.region})
+City: ${ipData.city}
+ZIP: ${ipData.zip}
+Coordinates: ${ipData.lat}, ${ipData.lon}
+Timezone: ${ipData.timezone}
+ISP: ${ipData.isp}
+Organization: ${ipData.org}
+AS: ${ipData.as}`;
           break;
         case 'whois':
           const whoisData = await networkTools.lookupWhois(input);
