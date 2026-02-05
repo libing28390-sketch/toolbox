@@ -35,6 +35,12 @@ export default function ToolPanel({ tool }: ToolPanelProps) {
         case 'xml-formatter':
           result = codeTools.formatXML(input);
           break;
+        case 'code-prettify':
+          result = await codeTools.formatCode(input);
+          break;
+        case 'code-minify':
+          result = await codeTools.minifyCode(input);
+          break;
         case 'url-encode':
           result = encodingTools.urlEncode(input);
           break;

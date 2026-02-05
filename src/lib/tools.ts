@@ -21,37 +21,48 @@ export const codeTools = {
   formatXML: (input: string): string => {
     try {
       let xml = input.trim();
+      // Simple regex-based formatter (can be improved)
       let formatted = '';
-      let indent = '';
-      const indentStr = '  ';
-
-      for (let i = 0; i < xml.length; i++) {
-        const char = xml[i];
-        const nextChar = xml[i + 1];
-
-        if (char === '<') {
-          if (xml[i + 1] === '/') {
-            indent = indent.slice(0, -indentStr.length);
-          }
-          formatted += '\n' + indent + '<';
-        } else if (char === '>') {
-          formatted += '>';
-          if (nextChar !== '<' && nextChar !== '/') {
-            // 文本内容，不添加新行
-          } else if (xml.substring(i + 1, i + 2) !== '/') {
-            if (xml[i + 1] !== '<' || !xml.substring(i + 1, i + 2).match(/^<!|^\?/)) {
-              indent += indentStr;
-            }
-          }
-        } else {
-          formatted += char;
-        }
-      }
-      return formatted.trim();
+      let indent = 0;
+      const tab = '  ';
+      xml.split(/>\s*</).forEach(function(node) {
+          if (node.match( /^\/\w/ )) indent -= 1;
+          formatted += new Array(indent + 1).join(tab) + '<' + node + '>\r\n';
+          if (node.match( /^<?\w[^>]*[^\/]$/ )) indent += 1;
+      });
+      return formatted.substring(1, formatted.length-3);
     } catch (e) {
       throw new Error('Invalid XML');
     }
   },
+
+  async formatCode(code: string, language: string = 'javascript') {
+    const response = await fetch('/api/tools/code/format', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, language }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Formatting failed');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async minifyCode(code: string) {
+    const response = await fetch('/api/tools/code/minify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Minification failed');
+    }
+    const data = await response.json();
+    return data.result;
+  }
 };
 
 // 编码工具函数
