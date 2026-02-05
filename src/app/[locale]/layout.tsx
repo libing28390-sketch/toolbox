@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getMessages } from 'next-intl/server';
 import { NextIntlClientProvider } from 'next-intl';
-import Script from 'next/script';
+// import Script from 'next/script'; // 验证阶段建议暂时移除这个组件，改用原生标签
 import '../globals.css';
 
 export const metadata: Metadata = {
@@ -20,13 +20,17 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
 
   return (
     <html lang={locale}>
-      <body className="antialiased">
-        <Script
+      <head>
+        {/* 🔥 Google AdSense 验证代码 
+           直接使用原生 script 标签放在 head 中，避免 Next.js 的 hydration 延迟 
+        */}
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6075673407634107"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
+        ></script>
+      </head>
+      <body className="antialiased">
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
