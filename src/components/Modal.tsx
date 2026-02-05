@@ -41,11 +41,11 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
       {/* Modal Content */}
       <div 
         ref={modalRef}
-        className="relative w-full max-w-5xl h-[85vh] bg-[#202024] border border-white/10 rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
+        className="relative w-full max-w-5xl h-[85vh] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col animate-in zoom-in-95 duration-200 overflow-hidden"
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 bg-[#2e2e33] hover:bg-[#3f3f46] text-zinc-400 hover:text-white rounded-full transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-full transition-colors"
         >
           <X size={20} />
         </button>
