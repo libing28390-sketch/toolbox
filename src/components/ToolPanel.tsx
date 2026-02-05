@@ -334,7 +334,7 @@ ${subnets.join('\n')}`;
                 </button>
               )}
             </div>
-            <div className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group resize-y min-h-[400px]">
+            <div className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group resize-y min-h-[400px] whitespace-pre-wrap">
               {error ? (
                 <div className="text-red-400">{error}</div>
               ) : (
