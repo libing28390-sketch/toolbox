@@ -12,10 +12,6 @@ export async function POST(req: NextRequest) {
     // Terser only works for JavaScript
     const result = await minify(code);
     
-    if (result.error) {
-      throw result.error;
-    }
-
     return NextResponse.json({ result: result.code });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Minification failed' }, { status: 500 });
