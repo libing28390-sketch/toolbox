@@ -2,7 +2,7 @@
 
 import { useTranslations, useLocale } from 'next-intl';
 import { useState } from 'react';
-import { Copy, Download, Trash2 } from 'lucide-react';
+import { Copy, Download, Trash2, Sparkles } from 'lucide-react';
 import { Tool } from '@/data/tools';
 import { codeTools, encodingTools, timeTools, colorTools, textTools, dataTools } from '@/lib/tools';
 import { networkTools } from '@/lib/network-tools';
@@ -10,6 +10,40 @@ import { networkTools } from '@/lib/network-tools';
 interface ToolPanelProps {
   tool: Tool;
 }
+
+const TOOL_EXAMPLES: Record<string, string> = {
+  'json-formatter': '{\n  "name": "Toolbox",\n  "version": 1,\n  "features": ["formatter", "converter"]\n}',
+  'xml-formatter': '<root><child id="1">Hello</child><child id="2">World</child></root>',
+  'code-prettify': 'function hello(name){console.log("Hello "+name);return true;}',
+  'code-minify': 'function hello(name) {\n  console.log("Hello " + name);\n  return true;\n}',
+  'url-encode': 'https://example.com/search?q=hello world&lang=zh-CN',
+  'base64': 'Hello World',
+  'md5': 'Hello World',
+  'sha': 'Hello World',
+  'uuid': '', // No input needed
+  'timestamp': '1707123456',
+  'case-converter': 'Hello World',
+  'simplified-chinese': '憂鬱的臺灣烏龜',
+  'emoji-converter': 'I :love: coding! :rocket:',
+  'word-count': 'Hello world! This is a simple word count test.',
+  'density-analysis': 'apple banana apple orange banana apple',
+  'repeat-check': 'apple\nbanana\napple\norange\nbanana',
+  'regex': '^\\d+$\n12345\nabc\n67890',
+  'extract-replace': '\\d+\nNUMBER\nOrder #12345: Item #67890',
+  'csv-to-json': 'Name,Age,City\nAlice,30,New York\nBob,25,Los Angeles',
+  'markdown-editor': '# Hello Markdown\n\n- Item 1\n- Item 2\n\n**Bold Text**',
+  'random-generator': '32',
+  'color-converter': '#3b82f6',
+  'ip-subnet-calculator': '192.168.1.0/24',
+  'ip-lookup': '8.8.8.8',
+  'whois': 'google.com',
+  'dns-lookup': 'google.com',
+  'mac-lookup': '00:1A:2B:3C:4D:5E',
+  'ua-parser': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'ssl-checker': 'google.com',
+  'http-headers': 'https://google.com',
+  'cidr-calc': '192.168.0.0/16',
+};
 
 export default function ToolPanel({ tool }: ToolPanelProps) {
   const t = useTranslations();
@@ -220,9 +254,17 @@ ${subnets.join('\n')}`;
     setError('');
   };
 
+  const loadExample = () => {
+    const example = TOOL_EXAMPLES[tool.id];
+    if (example) {
+      setInput(example);
+      setError('');
+    }
+  };
+
   return (
-    <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-xl overflow-hidden">
-      <div className="p-6 border-b border-slate-800 flex justify-between items-start">
+    <div className="bg-slate-900 rounded-xl border border-slate-800 shadow-xl overflow-hidden flex flex-col h-full">
+      <div className="p-6 border-b border-slate-800 flex justify-between items-start flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-3">
             <span className="text-3xl">{tool.icon}</span> 
@@ -232,16 +274,26 @@ ${subnets.join('\n')}`;
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="flex flex-col space-y-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              {t('buttons.convert')}
-            </label>
+      <div className="p-6 space-y-6 flex-1 flex flex-col overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
+          <div className="flex flex-col space-y-2 h-full">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {t('buttons.convert')}
+              </label>
+              {TOOL_EXAMPLES[tool.id] && (
+                <button
+                  onClick={loadExample}
+                  className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-blue-400 px-2 py-1 rounded transition-colors"
+                >
+                  <Sparkles size={12} /> Load Example
+                </button>
+              )}
+            </div>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="flex-1 min-h-[300px] bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
+              className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent font-mono text-sm resize-none"
               placeholder={
                   tool.id === 'ip-subnet-calculator' || tool.id === 'cidr-calc'
                     ? "Enter IP/CIDR (e.g., 192.168.1.1/24)" 
@@ -268,7 +320,7 @@ ${subnets.join('\n')}`;
             />
           </div>
 
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 h-full">
             <div className="flex justify-between items-center">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Output
@@ -282,7 +334,7 @@ ${subnets.join('\n')}`;
                 </button>
               )}
             </div>
-            <div className="flex-1 min-h-[300px] bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group">
+            <div className="flex-1 w-full bg-slate-950 text-slate-200 rounded-lg p-4 border border-slate-800 font-mono text-sm overflow-auto relative group">
               {error ? (
                 <div className="text-red-400">{error}</div>
               ) : (
@@ -292,7 +344,7 @@ ${subnets.join('\n')}`;
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+        <div className="flex justify-end gap-3 pt-4 border-t border-slate-800 flex-shrink-0">
           <button
             onClick={handleClear}
             className="px-4 py-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
