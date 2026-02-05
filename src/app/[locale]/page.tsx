@@ -14,13 +14,13 @@ export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <main className="flex flex-col h-screen bg-slate-950 overflow-hidden">
+    <main className="flex flex-col h-screen bg-zinc-950 overflow-hidden text-zinc-100">
       <Header />
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - Only show when a tool is selected */}
         {selectedTool && (
           <aside 
-            className={`flex-shrink-0 z-10 transition-all duration-300 ease-in-out border-r border-slate-800 ${
+            className={`flex-shrink-0 z-10 transition-all duration-300 ease-in-out border-r border-zinc-800 ${
               isSidebarCollapsed ? 'w-16' : 'w-64'
             }`}
           >
@@ -35,7 +35,7 @@ export default function Home() {
         )}
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto bg-slate-950 relative transition-all duration-300">
+        <div className="flex-1 overflow-y-auto bg-zinc-950 relative transition-all duration-300">
           {selectedTool ? (
             <div className="max-w-7xl mx-auto p-4 md:p-6 h-full flex flex-col">
               <ToolPanel tool={toolsData.flat().find(t => t.id === selectedTool)!} />
