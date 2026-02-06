@@ -31,7 +31,7 @@ interface JSONData {
 const CustomNode = ({ data, sourcePosition, targetPosition }: NodeProps) => {
   return (
     <div className="px-4 py-3 shadow-xl rounded-lg bg-[#18181b] border border-zinc-700/50 min-w-[200px] hover:border-blue-500/50 transition-colors">
-      <Handle type="target" position={targetPosition} className="!bg-blue-500 !w-2 !h-2" />
+      <Handle type="target" position={targetPosition || Position.Left} className="!bg-blue-500 !w-2 !h-2" />
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-1">
           <span className="text-blue-400 text-xs font-bold font-mono">{data.label}</span>
@@ -50,7 +50,7 @@ const CustomNode = ({ data, sourcePosition, targetPosition }: NodeProps) => {
         )}
         {data.content === 'null' && <span className="text-zinc-500 italic text-sm">null</span>}
       </div>
-      <Handle type="source" position={sourcePosition} className="!bg-blue-500 !w-2 !h-2" />
+      <Handle type="source" position={sourcePosition || Position.Right} className="!bg-blue-500 !w-2 !h-2" />
     </div>
   );
 };
