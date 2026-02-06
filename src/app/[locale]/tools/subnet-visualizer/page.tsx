@@ -6,8 +6,9 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { networkTools } from "@/lib/network-tools";
+import ipaddr from "ipaddr.js";
 
-// Redesigned: IP Grid Matrix (16x16) for /24 visualization
+// Redesigned: IP Grid Matrix (16x16) for /24 (IPv4) or /120 slice (IPv6) visualization
 
 function ipToNumber(ip: string) {
   const parts = ip.split(".").map((p) => parseInt(p, 10) || 0);
@@ -32,6 +33,25 @@ function toBinaryString(n: number) {
   return n.toString(2).padStart(8, "0");
 }
 
+function ipv6BytesToString(bytes: number[]) {
+  const parts: number[] = [];
+  for (let i = 0; i < 16; i += 2) {
+    parts.push(((bytes[i] << 8) | bytes[i + 1]) & 0xffff);
+  }
+  const addr = new ipaddr.IPv6(parts);
+  return addr.toString();
+}
+
+function ipv6BigIntToString(v: bigint) {
+  const bytes = new Array<number>(16).fill(0);
+  let value = v;
+  for (let i = 15; i >= 0; i--) {
+    bytes[i] = Number(value & 0xffn);
+    value >>= 8n;
+  }
+  return ipv6BytesToString(bytes);
+}
+
 export default function SubnetVisualizerPage() {
   // draft input (what user is typing) vs applied input (what grid is showing)
   const [draftInput, setDraftInput] = useState("192.168.1.0/24");
@@ -42,9 +62,6 @@ export default function SubnetVisualizerPage() {
   const applied = useMemo(() => {
     try {
       const res = networkTools.calculateSubnet(appliedInput);
-      if (res.type !== "IPv4" || !res.broadcastAddress) {
-        return { ok: false as const, error: "Only IPv4 visualization is supported (for now)." };
-      }
       return { ok: true as const, res };
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Invalid input";
@@ -52,15 +69,17 @@ export default function SubnetVisualizerPage() {
     }
   }, [appliedInput]);
 
-  // We always render a /24 grid (god's-eye view). If applied CIDR isn't /24,
-  // we highlight the subnet range *within* the /24 that contains the subnet network address.
+  // For IPv4: god's-eye view of a /24 subnet (256 addresses).
+  // For IPv6: god's-eye view of a /120 slice (last 8 bits 0..255) inside the subnet.
   const base = useMemo(() => {
     const fallback = {
+      mode: "IPv4" as "IPv4" | "IPv6",
+      gridLabel: "192.168.1.0/24",
       base24Network: ipToNumber("192.168.1.0"),
-      base24Text: "192.168.1.0/24",
+      ipv6BaseBigInt: null as bigint | null,
       startIndex: 0,
       endIndex: 255,
-      gatewayIndex: 1,
+      gatewayIndex: 1 as number | null,
       subnetNetworkText: "192.168.1.0",
       subnetBroadcastText: "192.168.1.255",
       cidr: 24,
@@ -71,44 +90,127 @@ export default function SubnetVisualizerPage() {
     if (!applied.ok) return fallback;
 
     const { res } = applied;
-    const subnetNetworkNum = ipToNumber(res.networkAddress);
-    const subnetBroadcastNum = ipToNumber(res.broadcastAddress!);
 
-    const base24Network = (subnetNetworkNum & 0xffffff00) >>> 0;
-    const base24Text = `${numberToIp(base24Network)}/24`;
+    if (res.type === "IPv4" && res.broadcastAddress) {
+      const subnetNetworkNum = ipToNumber(res.networkAddress);
+      const subnetBroadcastNum = ipToNumber(res.broadcastAddress);
 
-    const startIndex = Math.max(0, Math.min(255, (subnetNetworkNum - base24Network) >>> 0));
-    const endIndex = Math.max(0, Math.min(255, (subnetBroadcastNum - base24Network) >>> 0));
+      const base24Network = (subnetNetworkNum & 0xffffff00) >>> 0;
+      const gridLabel = `${numberToIp(base24Network)}/24`;
 
-    // default "gateway" heuristic: first usable (network+1) when there is room
-    const gatewayIndex =
-      res.cidr >= 31 ? null : Math.max(0, Math.min(255, startIndex + 1));
+      const startIndex = Math.max(0, Math.min(255, (subnetNetworkNum - base24Network) >>> 0));
+      const endIndex = Math.max(0, Math.min(255, (subnetBroadcastNum - base24Network) >>> 0));
 
-    const note =
-      res.cidr < 24
-        ? "Note: this subnet spans multiple /24 blocks; showing the /24 containing the subnet's network address."
-        : null;
+      const gatewayIndex =
+        res.cidr >= 31 ? null : Math.max(0, Math.min(255, startIndex + 1));
 
-    return {
-      base24Network,
-      base24Text,
-      startIndex,
-      endIndex,
-      gatewayIndex,
-      subnetNetworkText: res.networkAddress,
-      subnetBroadcastText: res.broadcastAddress!,
-      cidr: res.cidr,
-      subnetMask: res.subnetMask,
-      note,
-    };
+      const note =
+        res.cidr < 24
+          ? "Note: this subnet spans multiple /24 blocks; showing the /24 containing the subnet's network address."
+          : null;
+
+      return {
+        mode: "IPv4" as const,
+        gridLabel,
+        base24Network,
+        ipv6BaseBigInt: null as bigint | null,
+        startIndex,
+        endIndex,
+        gatewayIndex,
+        subnetNetworkText: res.networkAddress,
+        subnetBroadcastText: res.broadcastAddress,
+        cidr: res.cidr,
+        subnetMask: res.subnetMask,
+        note,
+      };
+    }
+
+    if (res.type === "IPv6") {
+      // IPv6: take the subnet network address, zero out the last 8 bits,
+      // and visualize that /120 slice.
+      const addr = ipaddr.parse(res.networkAddress) as ipaddr.IPv6;
+      const bytes = addr.toByteArray();
+      let baseBigInt = 0n;
+      for (const b of bytes) {
+        baseBigInt = (baseBigInt << 8n) | BigInt(b);
+      }
+      baseBigInt = (baseBigInt >> 8n) << 8n; // zero last 8 bits
+
+      const gridLabel = `${ipv6BigIntToString(baseBigInt)}/120`;
+      const note =
+        "IPv6: visualizing a /120 slice (last 8 bits 0–255) inside this subnet.";
+
+      return {
+        mode: "IPv6" as const,
+        gridLabel,
+        base24Network: 0,
+        ipv6BaseBigInt: baseBigInt,
+        startIndex: 0,
+        endIndex: 255,
+        gatewayIndex: null as number | null,
+        subnetNetworkText: res.networkAddress,
+        subnetBroadcastText: "",
+        cidr: res.cidr,
+        subnetMask: res.subnetMask,
+        note,
+      };
+    }
+
+    return fallback;
   }, [applied]);
 
   const cells = useMemo(() => {
+    // IPv4 grid
+    if (applied.ok && applied.res.type === "IPv4" && base.mode === "IPv4") {
+      const arr = new Array(256).fill(0).map((_, i) => {
+        const ipNum = (base.base24Network + i) >>> 0;
+        const ip = numberToIp(ipNum);
+        const octet = i; // 0..255
+
+        const inSubnet = i >= base.startIndex && i <= base.endIndex;
+        let type:
+          | "outside"
+          | "subnetNetwork"
+          | "subnetGateway"
+          | "subnetBroadcast"
+          | "subnetHost" = inSubnet ? "subnetHost" : "outside";
+
+        if (i === base.startIndex) type = "subnetNetwork";
+        else if (base.gatewayIndex !== null && i === base.gatewayIndex) type = "subnetGateway";
+        else if (i === base.endIndex) type = "subnetBroadcast";
+
+        return { index: i, ip, octet, type, inSubnet, family: "IPv4" as const };
+      });
+      return arr;
+    }
+
+    // IPv6 grid
+    if (applied.ok && applied.res.type === "IPv6" && base.mode === "IPv6" && base.ipv6BaseBigInt !== null) {
+      const arr = new Array(256).fill(0).map((_, i) => {
+        const ip = ipv6BigIntToString(base.ipv6BaseBigInt! + BigInt(i));
+        const octet = i;
+
+        const inSubnet = true;
+        let type:
+          | "outside"
+          | "subnetNetwork"
+          | "subnetGateway"
+          | "subnetBroadcast"
+          | "subnetHost" = "subnetHost";
+
+        if (i === 0) type = "subnetNetwork";
+        else if (i === 1) type = "subnetGateway";
+
+        return { index: i, ip, octet, type, inSubnet, family: "IPv6" as const };
+      });
+      return arr;
+    }
+
+    // Fallback IPv4 grid when parsing fails
     const arr = new Array(256).fill(0).map((_, i) => {
       const ipNum = (base.base24Network + i) >>> 0;
       const ip = numberToIp(ipNum);
-      const octet = i; // 0..255
-
+      const octet = i;
       const inSubnet = i >= base.startIndex && i <= base.endIndex;
       let type:
         | "outside"
@@ -116,21 +218,21 @@ export default function SubnetVisualizerPage() {
         | "subnetGateway"
         | "subnetBroadcast"
         | "subnetHost" = inSubnet ? "subnetHost" : "outside";
-
       if (i === base.startIndex) type = "subnetNetwork";
       else if (base.gatewayIndex !== null && i === base.gatewayIndex) type = "subnetGateway";
       else if (i === base.endIndex) type = "subnetBroadcast";
-
-      return { index: i, ipNum, ip, octet, type, inSubnet };
+      return { index: i, ip, octet, type, inSubnet, family: "IPv4" as const };
     });
     return arr;
-  }, [base]);
+  }, [applied, base]);
 
   const handleApply = () => {
     const next = draftInput.trim();
     try {
       const res = networkTools.calculateSubnet(next);
-      if (res.type !== "IPv4") throw new Error("Only IPv4 is supported for this visualizer.");
+      if (res.type !== "IPv4" && res.type !== "IPv6") {
+        throw new Error("Only IPv4 or IPv6 addresses are supported.");
+      }
       setAppliedInput(next);
       setHovered(null);
       setSelected(null);
@@ -175,7 +277,7 @@ export default function SubnetVisualizerPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
         <div className="px-3 py-1 rounded bg-zinc-900 border border-zinc-800 font-mono">
-          Grid: {base.base24Text}
+          Grid: {base.gridLabel}
         </div>
         {applied.ok ? (
           <>
@@ -254,28 +356,60 @@ export default function SubnetVisualizerPage() {
             <h3 className="font-semibold mb-3">Inspector</h3>
             {applied.ok ? (
               <div className="mb-3 space-y-1 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between gap-2">
-                  <span>Network</span>
-                  <span className="font-mono text-zinc-200">{applied.res.networkAddress}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span>Broadcast</span>
-                  <span className="font-mono text-zinc-200">{applied.res.broadcastAddress}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span>Usable</span>
-                  <span className="font-mono text-zinc-200">
-                    {applied.res.firstUsable && applied.res.lastUsable
-                      ? `${applied.res.firstUsable} – ${applied.res.lastUsable}`
-                      : "N/A"}
-                  </span>
-                </div>
+                {applied.res.type === "IPv4" ? (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Network</span>
+                      <span className="font-mono text-zinc-200">{applied.res.networkAddress}</span>
+                    </div>
+                    {applied.res.broadcastAddress ? (
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Broadcast</span>
+                        <span className="font-mono text-zinc-200">{applied.res.broadcastAddress}</span>
+                      </div>
+                    ) : null}
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Usable</span>
+                      <span className="font-mono text-zinc-200">
+                        {applied.res.firstUsable && applied.res.lastUsable
+                          ? `${applied.res.firstUsable} – ${applied.res.lastUsable}`
+                          : "N/A"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Network</span>
+                      <span className="font-mono text-zinc-200">{applied.res.networkAddress}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Total</span>
+                      <span className="font-mono text-zinc-200">{applied.res.totalHosts}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Usable (approx)</span>
+                      <span className="font-mono text-zinc-200">{applied.res.usableHosts}</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : null}
             {hovered !== null ? (
               (() => {
                 const c = cells[hovered];
-                const bin = c.ip.split('.').map((o) => toBinaryString(parseInt(o, 10))).join('.');
+                let bin: string;
+                if (c.family === "IPv4") {
+                  bin = c.ip.split(".").map((o) => toBinaryString(parseInt(o, 10))).join(".");
+                } else {
+                  try {
+                    const addr = ipaddr.parse(c.ip) as ipaddr.IPv6;
+                    const bytes = addr.toByteArray();
+                    bin = bytes.map((b) => toBinaryString(b)).join(" ");
+                  } catch {
+                    bin = c.ip;
+                  }
+                }
                 return (
                   <div className="space-y-2 text-sm">
                     <div className="font-mono text-sm">{c.ip}</div>
@@ -291,7 +425,18 @@ export default function SubnetVisualizerPage() {
             ) : selected !== null ? (
               (() => {
                 const c = cells[selected];
-                const bin = c.ip.split('.').map((o) => toBinaryString(parseInt(o, 10))).join('.');
+                let bin: string;
+                if (c.family === "IPv4") {
+                  bin = c.ip.split(".").map((o) => toBinaryString(parseInt(o, 10))).join(".");
+                } else {
+                  try {
+                    const addr = ipaddr.parse(c.ip) as ipaddr.IPv6;
+                    const bytes = addr.toByteArray();
+                    bin = bytes.map((b) => toBinaryString(b)).join(" ");
+                  } catch {
+                    bin = c.ip;
+                  }
+                }
                 return (
                   <div className="space-y-2 text-sm">
                     <div className="font-mono text-sm">{c.ip}</div>
@@ -306,12 +451,18 @@ export default function SubnetVisualizerPage() {
 
             <div className="mt-4">
               <div className="flex gap-2">
-                <div className="flex-1 px-2 py-1 rounded bg-amber-600 text-black text-xs text-center">Subnet Network</div>
-                <div className="flex-1 px-2 py-1 rounded bg-emerald-600 text-black text-xs text-center">Gateway (heuristic)</div>
+                <div className="flex-1 px-2 py-1 rounded bg-amber-600 text-black text-xs text-center">
+                  {base.mode === "IPv6" ? "Slice Start" : "Subnet Network"}
+                </div>
+                <div className="flex-1 px-2 py-1 rounded bg-emerald-600 text-black text-xs text-center">
+                  {base.mode === "IPv6" ? "Next Address" : "Gateway (heuristic)"}
+                </div>
               </div>
               <div className="flex gap-2 mt-2">
                 <div className="flex-1 px-2 py-1 rounded bg-slate-800 text-xs text-center">Usable Hosts</div>
-                <div className="flex-1 px-2 py-1 rounded bg-rose-600 text-black text-xs text-center">Subnet Broadcast</div>
+                <div className="flex-1 px-2 py-1 rounded bg-rose-600 text-black text-xs text-center">
+                  {base.mode === "IPv6" ? "Highlighted (N/A)" : "Subnet Broadcast"}
+                </div>
               </div>
             </div>
           </div>
