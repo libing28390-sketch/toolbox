@@ -63,7 +63,8 @@ const SCENARIOS: Scenario[] = [
         solution: {
           command: 'git branch new-feature && git reset --hard HEAD~1 && git checkout new-feature',
           description: 'This creates a new branch from your current state, removes the commit from the current branch (e.g., main), and switches to the new branch with your changes.',
-          isDangerous: false, // Technically hard reset is dangerous but here it's part of a safe workflow if done right. Let's mark false or true? User said "Solution -> ...". Let's stick to simple. The reset --hard is dangerous if not careful. I'll mark it true to be safe.
+          // Technically hard reset is dangerous but here it's part of a safe workflow if done right.
+          // The reset --hard can permanently delete changes; mark as dangerous.
           isDangerous: true,
         },
       },
