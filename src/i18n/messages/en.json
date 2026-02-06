@@ -60,7 +60,8 @@
     "uaParser": "User-Agent Parser",
     "sslChecker": "SSL Certificate Checker",
     "httpHeaders": "HTTP Headers Checker",
-    "cidrCalc": "CIDR Calculator"
+    "cidrCalc": "CIDR Calculator",
+    "networkPathVisualizer": "Network Path Visualizer"
   },
   "buttons": {
     "convert": "Convert",

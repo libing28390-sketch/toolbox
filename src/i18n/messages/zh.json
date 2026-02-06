@@ -60,7 +60,8 @@
     "uaParser": "User-Agent 分析",
     "sslChecker": "SSL 证书检测",
     "httpHeaders": "HTTP 响应头检测",
-    "cidrCalc": "CIDR 聚合/拆分"
+    "cidrCalc": "CIDR 聚合/拆分",
+    "networkPathVisualizer": "网络路径可视化"
   },
   "buttons": {
     "convert": "转换",
