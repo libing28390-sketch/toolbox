@@ -17,6 +17,8 @@ export default function Home() {
   const handleSelectTool = (id: string) => {
     if (id === 'json-visualizer') {
       router.push('/tools/json-visualizer');
+    } else if (id === 'nginx-config-generator') {
+      router.push('/tools/nginx-config-generator');
     } else {
       setSelectedTool(id);
     }

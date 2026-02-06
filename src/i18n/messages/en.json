@@ -15,6 +15,7 @@
     "networkTools": "Network Tools"
   },
   "tools": {
+    "nginxConfigGenerator": "Nginx Config Generator",
     "jsonVisualizer": "JSON Visualizer",
     "jsonFormatter": "JSON Formatter",
     "xmlFormatter": "XML Formatter",

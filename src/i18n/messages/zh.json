@@ -15,6 +15,7 @@
     "networkTools": "网络工具"
   },
   "tools": {
+    "nginxConfigGenerator": "Nginx 配置生成器",
     "jsonVisualizer": "JSON 可视化",
     "jsonFormatter": "JSON 格式化",
     "xmlFormatter": "XML 格式化",

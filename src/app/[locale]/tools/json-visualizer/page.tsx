@@ -13,6 +13,8 @@ import ReactFlow, {
   useReactFlow,
   Panel,
   Position,
+  Handle,
+  NodeProps,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
@@ -24,6 +26,38 @@ import { cn } from '@/lib/utils';
 interface JSONData {
   [key: string]: any;
 }
+
+// --- Custom Node ---
+const CustomNode = ({ data, sourcePosition, targetPosition }: NodeProps) => {
+  return (
+    <div className="px-4 py-3 shadow-xl rounded-lg bg-[#18181b] border border-zinc-700/50 min-w-[200px] hover:border-blue-500/50 transition-colors">
+      <Handle type="target" position={targetPosition} className="!bg-blue-500 !w-2 !h-2" />
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-1">
+          <span className="text-blue-400 text-xs font-bold font-mono">{data.label}</span>
+          <span className="text-[10px] text-zinc-600 uppercase font-mono bg-zinc-900 px-1 rounded">{data.type}</span>
+        </div>
+        {data.content && data.content !== 'null' && (
+          <span className={cn(
+            "text-sm font-mono break-all",
+            data.type === 'string' ? "text-green-400" :
+            data.type === 'number' ? "text-orange-400" :
+            data.type === 'boolean' ? "text-purple-400" :
+            "text-zinc-300"
+          )}>
+            {data.type === 'string' ? `"${data.content}"` : String(data.content)}
+          </span>
+        )}
+        {data.content === 'null' && <span className="text-zinc-500 italic text-sm">null</span>}
+      </div>
+      <Handle type="source" position={sourcePosition} className="!bg-blue-500 !w-2 !h-2" />
+    </div>
+  );
+};
+
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 // --- Dagre Layout Helper ---
 const dagreGraph = new dagre.graphlib.Graph();
@@ -95,17 +129,7 @@ const processJson = (data: any): { nodes: Node[]; edges: Edge[] } => {
       id: currentId,
       data: { label: labelKey, content, type },
       position: { x: 0, y: 0 }, // Position will be set by dagre
-      type: 'default', // Using default node type but styled via className/style
-      style: { 
-        background: '#18181b', 
-        color: '#fff', 
-        border: '1px solid rgba(255,255,255,0.1)', 
-        borderRadius: '8px',
-        padding: '10px',
-        minWidth: '180px',
-        fontSize: '12px',
-        fontFamily: 'monospace'
-      },
+      type: 'custom', 
     });
 
     // Add Edge
@@ -263,6 +287,7 @@ const JsonVisualizer = () => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
           connectionLineType={ConnectionLineType.SmoothStep}
           fitView
           minZoom={0.1}
