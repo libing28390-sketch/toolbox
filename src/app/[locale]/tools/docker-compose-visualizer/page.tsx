@@ -20,7 +20,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import Editor from '@monaco-editor/react';
 import yaml from 'js-yaml';
-import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server, Settings, FileCode, Wand2, X } from 'lucide-react';
+import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server, Settings, FileCode, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -178,6 +178,7 @@ export default function DockerComposeVisualizer() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [error, setError] = useState<string | null>(null);
+  const [editorFontSize, setEditorFontSize] = useState(13);
   const { toast } = useToast();
 
   // Edit Node State
@@ -524,6 +525,16 @@ export default function DockerComposeVisualizer() {
            </div>
            
            <div className="flex items-center gap-2">
+             <div className="flex items-center gap-1 mr-2 border-r border-zinc-700 pr-2">
+                <Button variant="ghost" size="icon" onClick={() => setEditorFontSize(s => Math.max(10, s - 1))} className="h-8 w-8 text-zinc-400 hover:text-white" title="Decrease font size">
+                    <ZoomOut size={14} />
+                </Button>
+                <span className="text-[10px] font-mono text-zinc-500 w-4 text-center">{editorFontSize}</span>
+                <Button variant="ghost" size="icon" onClick={() => setEditorFontSize(s => Math.min(24, s + 1))} className="h-8 w-8 text-zinc-400 hover:text-white" title="Increase font size">
+                    <ZoomIn size={14} />
+                </Button>
+             </div>
+
              <Button variant="ghost" size="sm" onClick={handleFormat} className="h-8 text-zinc-400 hover:text-white" title="Auto-format YAML indentation">
                 <Wand2 size={14} className="mr-1" /> Format
              </Button>
@@ -557,7 +568,7 @@ export default function DockerComposeVisualizer() {
                 onMount={handleEditorDidMount}
                 options={{
                     minimap: { enabled: false },
-                    fontSize: 13,
+                    fontSize: editorFontSize,
                     scrollBeyondLastLine: false,
                     padding: { top: 16, bottom: 16 },
                     fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
