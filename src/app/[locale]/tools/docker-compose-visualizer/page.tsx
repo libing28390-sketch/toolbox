@@ -393,9 +393,14 @@ export default function DockerComposeVisualizer() {
               });
           }
 
-          const newYaml = yaml.dump(parsed, { indent: 2 });
+          const newYaml = yaml.dump(parsed, { 
+            indent: 2, 
+            lineWidth: -1,
+            noRefs: true,
+            flowLevel: -1 
+          });
           setYamlContent(newYaml);
-          // Graph will update automatically via useEffect -> parseYamlToGraph
+          parseYamlToGraph(newYaml); // Update graph immediately
           setIsEditOpen(false);
           toast({ title: "Service Updated", description: `Updated ${newName} configuration.` });
 
@@ -409,7 +414,12 @@ export default function DockerComposeVisualizer() {
   const handleFormat = () => {
       try {
           const parsed = yaml.load(yamlContent);
-          const formatted = yaml.dump(parsed, { indent: 2, lineWidth: -1 });
+          const formatted = yaml.dump(parsed, { 
+            indent: 2, 
+            lineWidth: -1,
+            noRefs: true,
+            flowLevel: -1 
+          });
           setYamlContent(formatted);
           toast({ title: "Formatted", description: "YAML formatted successfully." });
       } catch (e) {
@@ -538,6 +548,8 @@ export default function DockerComposeVisualizer() {
             className="bg-[#0c0c0e]"
             minZoom={0.2}
             deleteKeyCode={['Backspace', 'Delete']}
+            panActivationKeyCode={null}
+            preventScrolling={false}
          >
             <Background color="#222" gap={20} size={1} />
             <Controls className="!bg-[#18181b] !border-white/10 [&>button]:!fill-zinc-400 [&>button:hover]:!fill-white" />
