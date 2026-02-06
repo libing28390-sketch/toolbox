@@ -400,13 +400,20 @@ export default function DockerComposeVisualizer() {
             flowLevel: -1 
           });
           setYamlContent(newYaml);
-          parseYamlToGraph(newYaml); // Update graph immediately
+          // Graph will update automatically via useEffect if we rely on yamlContent change, 
+          // BUT since we are inside an event handler, we want immediate feedback.
+          // However, setYamlContent is async.
+          // Let's call parseYamlToGraph directly with the new string.
+          parseYamlToGraph(newYaml);
+          
           setIsEditOpen(false);
           toast({ title: "Service Updated", description: `Updated ${newName} configuration.` });
 
       } catch (e: any) {
           console.error("Failed to save node edit", e);
-          toast({ title: "Error", description: "Failed to update YAML. Check console.", variant: "destructive" });
+          let errorMessage = "Failed to update YAML.";
+          if (e.message) errorMessage += ` ${e.message}`;
+          toast({ title: "Error", description: errorMessage, variant: "destructive" });
       }
   };
 
