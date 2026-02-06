@@ -64,6 +64,7 @@ export const toolsData: Tool[][] = [
   ],
   // Network Tools
   [
+    { id: 'subnet-visualizer', nameKey: 'tools.subnetVisualizer', categoryKey: 'categories.networkTools', icon: '🗺️', href: '/tools/subnet-visualizer' },
     { id: 'ip-subnet-calculator', nameKey: 'tools.ipSubnetCalculator', categoryKey: 'categories.networkTools', icon: '🔢' },
     { id: 'ip-lookup', nameKey: 'tools.ipLookup', categoryKey: 'categories.networkTools', icon: '🌐' },
     { id: 'whois', nameKey: 'tools.whois', categoryKey: 'categories.networkTools', icon: '📋' },
