@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-// --- Types ---
-type SubnetNode = {
-  cidr: string;
-  isSplit: boolean;
-  children?: [SubnetNode, SubnetNode] | null;
-};
+// Redesigned: IP Grid Matrix (16x16) for /24 visualization
 
-// --- IP helper functions (IPv4 only) ---
 function ipToNumber(ip: string) {
-  const parts = ip.split(".").map((p) => parseInt(p, 10));
+  const parts = ip.split(".").map((p) => parseInt(p, 10) || 0);
   return (
-    ((parts[0] || 0) << 24) |
-    ((parts[1] || 0) << 16) |
-    ((parts[2] || 0) << 8) |
-    (parts[3] || 0)
+    ((parts[0] & 0xff) << 24) |
+    ((parts[1] & 0xff) << 16) |
+    ((parts[2] & 0xff) << 8) |
+    (parts[3] & 0xff)
   ) >>> 0;
 }
 
@@ -31,293 +26,139 @@ function numberToIp(n: number) {
   ].join(".");
 }
 
-function prefixToMask(prefix: number) {
-  return prefix === 0 ? 0 : (~((1 << (32 - prefix)) - 1)) >>> 0;
-}
-
-function parseCidr(cidr: string) {
-  const [ip, p] = cidr.split("/");
-  const prefix = p ? parseInt(p, 10) : 32;
-  const network = ipToNumber(ip) & prefixToMask(prefix);
-  return { network, prefix };
-}
-
-function formatCidr(network: number, prefix: number) {
-  return `${numberToIp(network)}/${prefix}`;
-}
-
-function calcBroadcast(network: number, prefix: number) {
-  const mask = prefixToMask(prefix);
-  return (network | (~mask >>> 0)) >>> 0;
-}
-
-function hostCount(prefix: number) {
-  if (prefix >= 31) return 0;
-  return Math.max(0, (1 << (32 - prefix)) - 2);
-}
-
-function netmaskString(prefix: number) {
-  return numberToIp(prefixToMask(prefix));
-}
-
-function binaryRepresentation(ipNum: number, prefix: number) {
-  const bits = ipNum.toString(2).padStart(32, "0");
-  const net = bits.slice(0, prefix);
-  const host = bits.slice(prefix);
-  return { net, host };
-}
-
-function splitCidr(cidr: string): [string, string] {
-  const { network, prefix } = parseCidr(cidr);
-  const newPrefix = prefix + 1;
-  const size = 1 << (32 - newPrefix);
-  const first = network;
-  const second = (network + size) >>> 0;
-  return [formatCidr(first, newPrefix), formatCidr(second, newPrefix)];
-}
-
-// --- Utilities to update tree by path ---
-function cloneNode(node: SubnetNode): SubnetNode {
-  return {
-    cidr: node.cidr,
-    isSplit: node.isSplit,
-    children: node.children ? [cloneNode(node.children[0]), cloneNode(node.children[1])] : null,
-  };
-}
-
-function updateAtPath(root: SubnetNode, path: number[], fn: (n: SubnetNode) => SubnetNode) {
-  if (path.length === 0) return fn(cloneNode(root));
-  const [head, ...rest] = path;
-  const newRoot = cloneNode(root);
-  let cursor: SubnetNode = newRoot;
-  for (let i = 0; i < path.length - 1; i++) {
-    const idx = path[i];
-    if (!cursor.children) break;
-    cursor = cursor.children[idx] = cloneNode(cursor.children[idx]);
-  }
-  const lastIdx = path[path.length - 1];
-  if (!cursor.children) return newRoot;
-  cursor.children[lastIdx] = fn(cloneNode(cursor.children[lastIdx]));
-  return newRoot;
-}
-
-// --- React Components ---
-function InfoLines({ cidr }: { cidr: string }) {
-  const { network, prefix } = parseCidr(cidr);
-  const broadcast = calcBroadcast(network, prefix);
-  const hosts = hostCount(prefix);
-  const firstUsable = hosts > 0 ? numberToIp(network + 1) : numberToIp(network);
-  const lastUsable = hosts > 0 ? numberToIp(broadcast - 1) : numberToIp(broadcast);
-  return (
-    <div className="text-xs leading-snug">
-      <div className="font-mono text-sm">{cidr}</div>
-      <div className="text-muted-foreground">{hosts} hosts</div>
-      <div className="text-muted-foreground">{firstUsable} - {lastUsable}</div>
-      <div className="text-muted-foreground">Netmask: {netmaskString(prefix)}</div>
-    </div>
-  );
-}
-
-function Block({
-  node,
-  path,
-  depth,
-  onSplit,
-  onMerge,
-  onSelect,
-  selectedPath,
-}: {
-  node: SubnetNode;
-  path: number[];
-  depth: number;
-  onSplit: (path: number[]) => void;
-  onMerge: (path: number[]) => void;
-  onSelect: (path: number[]) => void;
-  selectedPath: number[] | null;
-}) {
-  const isSelected = selectedPath && selectedPath.join(",") === path.join(",");
-
-  const baseColor = [
-    "from-indigo-600 to-indigo-500",
-    "from-sky-600 to-sky-500",
-    "from-purple-600 to-purple-500",
-    "from-blue-700 to-blue-600",
-  ][depth % 4];
-
-  if (node.isSplit && node.children) {
-    // alternate split direction by depth
-    const dir = depth % 2 === 0 ? "flex-row" : "flex-col";
-    return (
-      <div className={cn("flex", dir, "w-full h-full overflow-hidden border") }>
-        <div className="w-0 flex-1 h-full">
-          <Block
-            node={node.children[0]}
-            path={[...path, 0]}
-            depth={depth + 1}
-            onSplit={onSplit}
-            onMerge={onMerge}
-            onSelect={onSelect}
-            selectedPath={selectedPath}
-          />
-        </div>
-        <div className="w-0 flex-1 h-full">
-          <Block
-            node={node.children[1]}
-            path={[...path, 1]}
-            depth={depth + 1}
-            onSplit={onSplit}
-            onMerge={onMerge}
-            onSelect={onSelect}
-            selectedPath={selectedPath}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      onClick={() => onSelect(path)}
-      className={cn(
-        "relative flex items-start justify-between p-3 cursor-pointer h-full w-full",
-        isSelected ? "ring-2 ring-offset-1 ring-indigo-400" : "",
-      )}
-    >
-      <div className={cn("rounded-sm p-2 w-full h-full bg-gradient-to-br text-white/95", baseColor)}>
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="font-semibold text-sm">{node.cidr}</div>
-            <div className="text-xs opacity-90">
-              {hostCount(parseInt(node.cidr.split("/")[1] || "32", 10))} hosts
-            </div>
-            <div className="text-xs opacity-80">{(() => {
-              const { network, prefix } = parseCidr(node.cidr);
-              const broadcast = calcBroadcast(network, prefix);
-              const first = hostCount(prefix) > 0 ? numberToIp(network + 1) : numberToIp(network);
-              const last = hostCount(prefix) > 0 ? numberToIp(broadcast - 1) : numberToIp(broadcast);
-              return `${first} - ${last}`;
-            })()}</div>
-          </div>
-
-          <div className="flex flex-col items-end gap-2">
-            <div className="opacity-90 text-[10px]">/{node.cidr.split("/")[1]}</div>
-            <div className="flex gap-2">
-              {!node.isSplit && (
-                <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); onSplit(path); }}>
-                  Split
-                </Button>
-              )}
-              {(node.isSplit && node.children) && (
-                <Button size="xs" variant="ghost" onClick={(e) => { e.stopPropagation(); onMerge(path); }}>
-                  Merge
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function toBinaryString(n: number) {
+  return n.toString(2).padStart(8, "0");
 }
 
 export default function SubnetVisualizerPage() {
-  const [root, setRoot] = useState<SubnetNode>({ cidr: "192.168.1.0/24", isSplit: false, children: null });
-  const [selectedPath, setSelectedPath] = useState<number[] | null>(null);
-  const [inputCidr, setInputCidr] = useState("192.168.1.0/24");
+  const [inputIp, setInputIp] = useState("192.168.1.0");
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
 
-  const handleSplit = (path: number[]) => {
-    const node = getNodeByPath(root, path);
-    if (!node) return;
-    const [a, b] = splitCidr(node.cidr);
-    const newRoot = updateAtPath(root, path, (n) => ({ ...n, isSplit: true, children: [{ cidr: a, isSplit: false, children: null }, { cidr: b, isSplit: false, children: null }] }));
-    setRoot(newRoot);
+  // base network number (assume /24) and base parts
+  const base = useMemo(() => {
+    const num = ipToNumber(inputIp);
+    // zero out last octet to get network base
+    const network = (num & 0xffffff00) >>> 0;
+    const octets = [
+      (network >>> 24) & 0xff,
+      (network >>> 16) & 0xff,
+      (network >>> 8) & 0xff,
+      network & 0xff,
+    ];
+    return { network, octets };
+  }, [inputIp]);
+
+  const cells = useMemo(() => {
+    const arr = new Array(256).fill(0).map((_, i) => {
+      const ipNum = (base.network + i) >>> 0;
+      const ip = numberToIp(ipNum);
+      const octet = i; // 0..255
+      let type: "network" | "gateway" | "broadcast" | "host" = "host";
+      if (i === 0) type = "network";
+      else if (i === 1) type = "gateway";
+      else if (i === 255) type = "broadcast";
+      return { index: i, ipNum, ip, octet, type };
+    });
+    return arr;
+  }, [base]);
+
+  const handleApply = () => {
+    setHovered(null);
+    setSelected(null);
   };
-
-  const handleMerge = (path: number[]) => {
-    // merging replaces parent; we should set the targeted node to not split and remove children
-    const newRoot = updateAtPath(root, path, (n) => ({ ...n, isSplit: false, children: null }));
-    setRoot(newRoot);
-  };
-
-  const handleSelect = (path: number[]) => {
-    setSelectedPath(path);
-  };
-
-  const applyRoot = () => {
-    setRoot({ cidr: inputCidr, isSplit: false, children: null });
-    setSelectedPath(null);
-  };
-
-  function getNodeByPath(node: SubnetNode, path: number[]): SubnetNode | null {
-    let cursor: SubnetNode | null = node;
-    for (let i = 0; i < path.length; i++) {
-      if (!cursor || !cursor.children) return null;
-      cursor = cursor.children[path[i]];
-    }
-    return cursor;
-  }
-
-  const selectedNode = selectedPath ? getNodeByPath(root, selectedPath) : null;
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 text-white">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Visual Subnet Calculator</h1>
-          <p className="text-sm text-muted-foreground">Interactively split and merge IPv4 CIDR blocks.</p>
+          <h1 className="text-2xl font-extrabold tracking-tight">Visual Subnet Calculator — IP Grid Matrix</h1>
+          <p className="text-sm text-muted-foreground">God's-eye view of a /24 subnet — hover to inspect individual IPs.</p>
         </div>
         <div className="flex items-center gap-2">
-          <input value={inputCidr} onChange={(e) => setInputCidr(e.target.value)} className="px-3 py-2 rounded-md bg-zinc-900 border" />
-          <Button onClick={applyRoot}>Apply</Button>
+          <input
+            value={inputIp}
+            onChange={(e) => setInputIp(e.target.value)}
+            className="px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-sm"
+            placeholder="Enter an IP (visualize /24)"
+          />
+          <Button onClick={handleApply}>Apply</Button>
         </div>
       </div>
 
-      <div className="flex gap-6">
-        <div className="flex-1 min-h-[480px] bg-zinc-900 border rounded-md p-2">
-          <div className="w-full h-full rounded-md overflow-hidden">
-            <Block
-              node={root}
-              path={[]}
-              depth={0}
-              onSplit={handleSplit}
-              onMerge={handleMerge}
-              onSelect={handleSelect}
-              selectedPath={selectedPath}
-            />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="md:col-span-3">
+          <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 shadow-lg">
+            <div className="grid grid-cols-16 gap-1">
+              {cells.map((c) => {
+                const isHovered = hovered === c.index;
+                const isSelected = selected === c.index;
+                const baseClasses = "w-full h-8 rounded-sm flex items-center justify-center text-[10px] font-mono transition-all duration-150";
+                const typeBg = c.type === "network" ? "bg-amber-500 text-zinc-900" : c.type === "gateway" ? "bg-emerald-500 text-zinc-900" : c.type === "broadcast" ? "bg-rose-500 text-zinc-900" : "bg-slate-800 text-zinc-200 hover:bg-blue-500 hover:text-white";
+                return (
+                  <Tooltip key={c.index} content={<div className="text-xs font-mono">{c.ip}</div>}>
+                    <div
+                      onMouseEnter={() => setHovered(c.index)}
+                      onMouseLeave={() => setHovered((h) => (h === c.index ? null : h))}
+                      onClick={() => setSelected(c.index)}
+                      className={cn(baseClasses, typeBg, isSelected ? "ring-2 ring-offset-1 ring-cyan-400" : "")}
+                      title={c.ip}
+                    >
+                      {c.index}
+                    </div>
+                  </Tooltip>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="w-80 bg-zinc-950 border rounded-md p-4 sticky top-20">
-          <h3 className="font-semibold mb-2">Details</h3>
-          {selectedNode ? (
-            <div className="space-y-2 text-sm">
-              <div className="font-mono">{selectedNode.cidr}</div>
-              {(() => {
-                const { network, prefix } = parseCidr(selectedNode.cidr);
-                const broadcast = calcBroadcast(network, prefix);
-                const gateway = hostCount(prefix) > 0 ? numberToIp(network + 1) : "N/A";
-                const mask = netmaskString(prefix);
-                const bin = binaryRepresentation(network, prefix);
+        <div className="md:col-span-1">
+          <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 sticky top-20">
+            <h3 className="font-semibold mb-3">Inspector</h3>
+            {hovered !== null ? (
+              (() => {
+                const c = cells[hovered];
+                const bin = c.ip.split('.').map((o) => toBinaryString(parseInt(o, 10))).join('.');
                 return (
-                  <div className="space-y-1">
-                    <div>Network: {numberToIp(network)}</div>
-                    <div>Broadcast: {numberToIp(broadcast)}</div>
-                    <div>Gateway: {gateway}</div>
-                    <div>Netmask: {mask}</div>
-                    <div className="mt-2">
-                      <div className="text-xs">Binary</div>
-                      <div className="font-mono text-xs break-words">
-                        <span className="text-green-300">{bin.net}</span>
-                        <span className="text-zinc-500">{bin.host}</span>
-                      </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="font-mono text-sm">{c.ip}</div>
+                    <div className="text-xs text-muted-foreground">Index: {c.index}</div>
+                    <div className="flex gap-2">
+                      <div className="px-2 py-1 rounded bg-zinc-800 text-xs">Type: <span className="font-medium">{c.type}</span></div>
+                      <div className="px-2 py-1 rounded bg-zinc-800 text-xs">Octet: <span className="font-medium">{c.octet}</span></div>
                     </div>
+                    <div className="mt-2 font-mono text-xs break-words bg-black/20 p-2 rounded">{bin}</div>
                   </div>
                 );
-              })()}
+              })()
+            ) : selected !== null ? (
+              (() => {
+                const c = cells[selected];
+                const bin = c.ip.split('.').map((o) => toBinaryString(parseInt(o, 10))).join('.');
+                return (
+                  <div className="space-y-2 text-sm">
+                    <div className="font-mono text-sm">{c.ip}</div>
+                    <div className="text-xs text-muted-foreground">Index: {c.index}</div>
+                    <div className="mt-2 font-mono text-xs break-words bg-black/20 p-2 rounded">{bin}</div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="text-sm text-muted-foreground">Hover a cell to inspect IP, or click to lock selection.</div>
+            )}
+
+            <div className="mt-4">
+              <div className="flex gap-2">
+                <div className="flex-1 px-2 py-1 rounded bg-amber-600 text-black text-xs text-center">Network (0)</div>
+                <div className="flex-1 px-2 py-1 rounded bg-emerald-600 text-black text-xs text-center">Gateway (1)</div>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <div className="flex-1 px-2 py-1 rounded bg-slate-800 text-xs text-center">Usable Hosts</div>
+                <div className="flex-1 px-2 py-1 rounded bg-rose-600 text-black text-xs text-center">Broadcast (255)</div>
+              </div>
             </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">Select a block to see details.</div>
-          )}
+          </div>
         </div>
       </div>
     </div>
