@@ -23,15 +23,37 @@ const cronParserModule = require('cron-parser');
 
 // Helper to handle cron-parser import differences across environments/versions
 const parseCron = (expression: string, options?: any) => {
-    const parser = cronParserModule.default || cronParserModule;
-    // v5 uses static parse(), older versions or some exports use parseExpression()
+    // Debug logging to help identify the module structure
+    // console.log('cronParserModule:', cronParserModule);
+    
+    let parser = cronParserModule.default || cronParserModule;
+    
+    // Check for named export CronExpressionParser (v5 style)
+    if (cronParserModule.CronExpressionParser && typeof cronParserModule.CronExpressionParser.parse === 'function') {
+        return cronParserModule.CronExpressionParser.parse(expression, options);
+    }
+
+    // Check for default export with parse (v5 style)
     if (typeof parser.parse === 'function') {
         return parser.parse(expression, options);
     }
+    
+    // Check for parseExpression (older versions)
     if (typeof parser.parseExpression === 'function') {
         return parser.parseExpression(expression, options);
     }
-    throw new Error('Unable to find cron parse function');
+
+    // Fallback: check if the module itself is the parser (unlikely but possible)
+    if (typeof cronParserModule.parseExpression === 'function') {
+        return cronParserModule.parseExpression(expression, options);
+    }
+
+    console.error('Available keys on cronParserModule:', Object.keys(cronParserModule));
+    if (cronParserModule.default) {
+        console.error('Available keys on cronParserModule.default:', Object.keys(cronParserModule.default));
+    }
+    
+    throw new Error('Unable to find cron parse function. Check console for details.');
 };
 
 interface CronJob {
@@ -97,6 +119,7 @@ export default function CronTimeline() {
     jobs.forEach(job => {
         try {
             // Important: Use 'currentDate: startTime' to ensure we find next executions relative to NOW
+            // Also ensure iterator: true is respected
             const interval = parseCron(job.expression, {
                 currentDate: startTime,
                 iterator: true
@@ -104,10 +127,13 @@ export default function CronTimeline() {
 
             // Get next run for the card info
             try {
-                // Find next run strictly after now
-                const nextRun = parseCron(job.expression, { currentDate: new Date() }).next().toDate();
+                // For card display, we want the absolute next run from NOW
+                const nextRunInterval = parseCron(job.expression, { currentDate: new Date(), iterator: true });
+                const nextRun = nextRunInterval.next().value.toDate();
                 jobNextRuns[job.id] = nextRun;
-            } catch {}
+            } catch (e) {
+                console.warn(`Failed to calculate next run for ${job.name}`, e);
+            }
 
             let count = 0;
             const MAX_DOTS = 100; // Limit dots per job to avoid crash on "* * * * *"
@@ -115,9 +141,12 @@ export default function CronTimeline() {
             while (true) {
                 if (count > MAX_DOTS) break;
                 
-                // .next() returns iterator result with value
-                const obj = interval.next();
-                const date = obj.value.toDate();
+                // .next() returns iterator result with value field which is CronDate
+                // We need to handle potential done state if iterator finishes (unlikely for cron but good practice)
+                const nextObj = interval.next();
+                if (nextObj.done) break;
+                
+                const date = nextObj.value.toDate();
                 
                 if (date > endTime) break;
 
