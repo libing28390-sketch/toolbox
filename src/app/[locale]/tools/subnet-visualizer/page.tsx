@@ -42,6 +42,38 @@ function ipv6BytesToString(bytes: number[]) {
   return addr.toString();
 }
 
+function formatHextet(n: number) {
+  return n.toString(16).toUpperCase().padStart(4, "0");
+}
+
+function formatIPv6Full(ip: string) {
+  try {
+    const addr = ipaddr.parse(ip) as ipaddr.IPv6;
+    const parts = addr.parts; // 8 * 16-bit parts
+    return parts.map(formatHextet).join(":");
+  } catch {
+    return ip;
+  }
+}
+
+function formatBytesBinary(bytes: number[]) {
+  // 16 bytes -> 4 lines of 4 bytes, each byte 8 bits
+  const chunks: string[] = [];
+  for (let i = 0; i < bytes.length; i += 4) {
+    chunks.push(bytes.slice(i, i + 4).map((b) => toBinaryString(b)).join(" "));
+  }
+  return chunks.join("\n");
+}
+
+function getIpv6Parts(ip: string): number[] | null {
+  try {
+    const addr = ipaddr.parse(ip) as ipaddr.IPv6;
+    return addr.parts.slice(0, 8);
+  } catch {
+    return null;
+  }
+}
+
 export default function SubnetVisualizerPage() {
   // draft input (what user is typing) vs applied input (what grid is showing)
   const [draftInput, setDraftInput] = useState("192.168.1.0/24");
@@ -216,6 +248,12 @@ export default function SubnetVisualizerPage() {
     return arr;
   }, [applied, base]);
 
+  const focusedCell = useMemo(() => {
+    if (hovered !== null) return cells[hovered] ?? null;
+    if (selected !== null) return cells[selected] ?? null;
+    return null;
+  }, [cells, hovered, selected]);
+
   const handleApply = () => {
     const next = draftInput.trim();
     try {
@@ -327,6 +365,11 @@ export default function SubnetVisualizerPage() {
             <div className="px-3 py-1 rounded bg-zinc-900 border border-zinc-800 font-mono">
               Mask: {applied.res.subnetMask}
             </div>
+            {applied.res.type === "IPv6" ? (
+              <div className="px-3 py-1 rounded bg-zinc-900 border border-zinc-800 font-mono">
+                Slice: /120 (last byte 0x00–0xFF)
+              </div>
+            ) : null}
           </>
         ) : (
           <div className="px-3 py-1 rounded bg-rose-950/60 border border-rose-900 text-rose-200">
@@ -341,6 +384,39 @@ export default function SubnetVisualizerPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-3">
           <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 shadow-lg">
+            {base.mode === "IPv6" ? (
+              <div className="mb-3 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs text-muted-foreground">Interface ID (last 64 bits) — showing last 8 bits</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ip = focusedCell?.ip || (applied.ok ? applied.res.networkAddress : "");
+                        if (!ip) return;
+                        navigator.clipboard?.writeText(ip);
+                        try { toast.success("Copied"); } catch {}
+                      }}
+                      className="text-xs px-2 py-1 rounded bg-zinc-800/70 hover:bg-zinc-700"
+                    >
+                      Copy focused
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ip = focusedCell?.ip || (applied.ok ? applied.res.networkAddress : "");
+                        if (!ip) return;
+                        navigator.clipboard?.writeText(formatIPv6Full(ip));
+                        try { toast.success("Copied full"); } catch {}
+                      }}
+                      className="text-xs px-2 py-1 rounded bg-zinc-800/70 hover:bg-zinc-700"
+                    >
+                      Copy full
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div
               className={cn(
                 "grid gap-1",
@@ -351,7 +427,10 @@ export default function SubnetVisualizerPage() {
               {cells.map((c) => {
                 const isHovered = hovered === c.index;
                 const isSelected = selected === c.index;
-                const baseClasses = "w-full h-8 rounded-sm flex items-center justify-center text-[10px] font-mono transition-all duration-150";
+                const baseClasses = cn(
+                  "w-full h-8 rounded-sm flex items-center justify-center text-[10px] font-mono transition-all duration-150",
+                  base.mode === "IPv6" ? "tracking-[0.08em]" : ""
+                );
                 const typeBg =
                   c.type === "subnetNetwork"
                     ? "bg-amber-500 text-zinc-900"
@@ -367,7 +446,7 @@ export default function SubnetVisualizerPage() {
                     key={c.index}
                     content={
                       <div className="flex items-center gap-2">
-                        <div className="font-mono text-xs">{c.ip}</div>
+                        <div className="font-mono text-xs max-w-[320px] break-all">{c.ip}</div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -378,6 +457,18 @@ export default function SubnetVisualizerPage() {
                         >
                           Copy
                         </button>
+                        {base.mode === "IPv6" ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard?.writeText(formatIPv6Full(c.ip));
+                              try { toast.success("Full copied"); } catch {}
+                            }}
+                            className="text-xs px-2 py-0.5 rounded bg-zinc-800/60 hover:bg-zinc-700"
+                          >
+                            Full
+                          </button>
+                        ) : null}
                       </div>
                     }
                   >
@@ -385,7 +476,12 @@ export default function SubnetVisualizerPage() {
                       onMouseEnter={() => setHovered(c.index)}
                       onMouseLeave={() => setHovered((h) => (h === c.index ? null : h))}
                       onClick={() => setSelected(c.index)}
-                      className={cn(baseClasses, typeBg, isSelected ? "ring-2 ring-offset-1 ring-cyan-400" : "")}
+                      className={cn(
+                        baseClasses,
+                        typeBg,
+                        isHovered ? "ring-1 ring-zinc-400/70" : "",
+                        isSelected ? "ring-2 ring-offset-1 ring-cyan-400" : ""
+                      )}
                       title={c.ip}
                     >
                       {base.mode === "IPv6"
@@ -403,44 +499,106 @@ export default function SubnetVisualizerPage() {
           <div className="bg-zinc-950 p-4 rounded-lg border border-zinc-800 sticky top-20">
             <h3 className="font-semibold mb-3">Inspector</h3>
             {applied.ok ? (
-              <div className="mb-3 space-y-1 text-xs text-muted-foreground">
-                {applied.res.type === "IPv4" ? (
-                  <>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Network</span>
-                      <span className="font-mono text-zinc-200">{applied.res.networkAddress}</span>
+              <div className="space-y-3 mb-3">
+                <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
+                  <div className="text-xs font-semibold text-zinc-200 mb-2">Subnet</div>
+                  <div className="space-y-1 text-xs text-muted-foreground">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0">Network</span>
+                      <span className="font-mono text-zinc-200 text-right break-all">{applied.res.networkAddress}/{applied.res.cidr}</span>
                     </div>
-                    {applied.res.broadcastAddress ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <span>Broadcast</span>
-                        <span className="font-mono text-zinc-200">{applied.res.broadcastAddress}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0">Mask</span>
+                      <span className="font-mono text-zinc-200 text-right break-all">{applied.res.subnetMask}</span>
+                    </div>
+                    {applied.res.type === "IPv4" && applied.res.broadcastAddress ? (
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="shrink-0">Broadcast</span>
+                        <span className="font-mono text-zinc-200 text-right break-all">{applied.res.broadcastAddress}</span>
                       </div>
                     ) : null}
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Usable</span>
-                      <span className="font-mono text-zinc-200">
-                        {applied.res.firstUsable && applied.res.lastUsable
-                          ? `${applied.res.firstUsable} – ${applied.res.lastUsable}`
-                          : "N/A"}
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="shrink-0">{applied.res.type === "IPv6" ? "Total" : "Hosts"}</span>
+                      <span className="font-mono text-zinc-200 text-right break-all">
+                        {applied.res.type === "IPv6" ? applied.res.totalHosts : applied.res.usableHosts}
                       </span>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Network</span>
-                      <span className="font-mono text-zinc-200">{applied.res.networkAddress}</span>
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
+                  <div className="text-xs font-semibold text-zinc-200 mb-2">Focused address</div>
+                  <div className="space-y-2">
+                    <div className="font-mono text-xs text-zinc-200 break-all">
+                      {focusedCell?.ip ?? applied.res.networkAddress}
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Total</span>
-                      <span className="font-mono text-zinc-200">{applied.res.totalHosts}</span>
+                    {applied.res.type === "IPv6" ? (
+                      <div className="font-mono text-[10px] text-zinc-400 break-all">
+                        {formatIPv6Full(focusedCell?.ip ?? applied.res.networkAddress)}
+                      </div>
+                    ) : null}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ip = focusedCell?.ip ?? applied.res.networkAddress;
+                          navigator.clipboard?.writeText(ip);
+                          try { toast.success("Copied"); } catch {}
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-zinc-800/70 hover:bg-zinc-700"
+                      >
+                        Copy
+                      </button>
+                      {applied.res.type === "IPv6" ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const ip = focusedCell?.ip ?? applied.res.networkAddress;
+                            navigator.clipboard?.writeText(formatIPv6Full(ip));
+                            try { toast.success("Copied full"); } catch {}
+                          }}
+                          className="text-xs px-2 py-1 rounded bg-zinc-800/70 hover:bg-zinc-700"
+                        >
+                          Copy full
+                        </button>
+                      ) : null}
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Usable (approx)</span>
-                      <span className="font-mono text-zinc-200">{applied.res.usableHosts}</span>
+                  </div>
+                </div>
+
+                {applied.res.type === "IPv6" ? (
+                  <div className="rounded-md border border-zinc-800 bg-zinc-900/30 p-3">
+                    <div className="text-xs font-semibold text-zinc-200 mb-2">Hextets</div>
+                    {(() => {
+                      const ip = focusedCell?.ip ?? applied.res.networkAddress;
+                      const parts = getIpv6Parts(ip);
+                      if (!parts) return <div className="text-xs text-muted-foreground">N/A</div>;
+
+                      const boundary = Math.max(0, Math.min(8, Math.floor(applied.res.cidr / 16)));
+                      return (
+                        <div className="grid grid-cols-4 gap-1 font-mono text-[10px]">
+                          {parts.map((p, idx) => (
+                            <div
+                              key={idx}
+                              className={cn(
+                                "px-2 py-1 rounded border text-center",
+                                idx < boundary
+                                  ? "bg-zinc-950/60 border-zinc-800 text-zinc-300"
+                                  : "bg-zinc-900/70 border-zinc-800 text-zinc-200"
+                              )}
+                              title={`Hextet ${idx}`}
+                            >
+                              {formatHextet(p)}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    <div className="mt-2 text-[10px] text-muted-foreground">
+                      Prefix boundary is approximate (by 16-bit hextets).
                     </div>
-                  </>
-                )}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {hovered !== null ? (
@@ -453,7 +611,7 @@ export default function SubnetVisualizerPage() {
                   try {
                     const addr = ipaddr.parse(c.ip) as ipaddr.IPv6;
                     const bytes = addr.toByteArray();
-                    bin = bytes.map((b) => toBinaryString(b)).join(" ");
+                    bin = formatBytesBinary(bytes);
                   } catch {
                     bin = c.ip;
                   }
@@ -466,7 +624,7 @@ export default function SubnetVisualizerPage() {
                       <div className="px-2 py-1 rounded bg-zinc-800 text-xs">Type: <span className="font-medium">{c.type}</span></div>
                       <div className="px-2 py-1 rounded bg-zinc-800 text-xs">Octet: <span className="font-medium">{c.octet}</span></div>
                     </div>
-                    <div className="mt-2 font-mono text-xs break-words bg-black/20 p-2 rounded">{bin}</div>
+                    <pre className="mt-2 font-mono text-[10px] whitespace-pre-wrap bg-black/20 p-2 rounded">{bin}</pre>
                   </div>
                 );
               })()
@@ -480,7 +638,7 @@ export default function SubnetVisualizerPage() {
                   try {
                     const addr = ipaddr.parse(c.ip) as ipaddr.IPv6;
                     const bytes = addr.toByteArray();
-                    bin = bytes.map((b) => toBinaryString(b)).join(" ");
+                    bin = formatBytesBinary(bytes);
                   } catch {
                     bin = c.ip;
                   }
@@ -489,7 +647,7 @@ export default function SubnetVisualizerPage() {
                   <div className="space-y-2 text-sm">
                     <div className="font-mono text-sm">{c.ip}</div>
                     <div className="text-xs text-muted-foreground">Index: {c.index}</div>
-                    <div className="mt-2 font-mono text-xs break-words bg-black/20 p-2 rounded">{bin}</div>
+                    <pre className="mt-2 font-mono text-[10px] whitespace-pre-wrap bg-black/20 p-2 rounded">{bin}</pre>
                   </div>
                 );
               })()
