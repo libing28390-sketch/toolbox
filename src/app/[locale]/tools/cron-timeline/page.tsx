@@ -1,10 +1,25 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, AlertTriangle, Calendar, Info } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Clock, Calendar, Trash2, AlertTriangle, Info, Plus, Play, Check, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { format, addHours, differenceInMinutes, startOfHour, isSameMinute, formatDistanceToNow } from 'date-fns';
+import cronstrue from 'cronstrue';
+import { useToast } from '@/hooks/use-toast';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+// Use require for cron-parser to avoid type issues if not fully typed
 const cronParser = require('cron-parser');
-import { format, addHours, differenceInMinutes, startOfHour, isSameMinute } from 'date-fns';
 
 interface CronJob {
   id: string;
@@ -14,27 +29,59 @@ interface CronJob {
 }
 
 const COLORS = [
-  'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500'
+  'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-pink-500', 'bg-cyan-500', 'bg-yellow-500', 'bg-indigo-500'
+];
+
+const PRESETS = [
+    { label: 'Every Minute', value: '* * * * *' },
+    { label: 'Every 5 Minutes', value: '*/5 * * * *' },
+    { label: 'Every 15 Minutes', value: '*/15 * * * *' },
+    { label: 'Every Hour', value: '0 * * * *' },
+    { label: 'Daily at Midnight', value: '0 0 * * *' },
+    { label: 'Daily at 8:00 AM', value: '0 8 * * *' },
+    { label: 'Weekly (Monday)', value: '0 0 * * 1' },
+    { label: 'Monthly (1st)', value: '0 0 1 * *' },
 ];
 
 export default function CronTimeline() {
+  const { toast } = useToast();
+  
+  // -- State --
   const [jobs, setJobs] = useState<CronJob[]>([
     { id: '1', name: 'Database Backup', expression: '0 0 * * *', color: COLORS[0] },
-    { id: '2', name: 'Log Rotation', expression: '*/30 * * * *', color: COLORS[1] },
-    { id: '3', name: 'Email Digest', expression: '0 9 * * 1', color: COLORS[2] },
+    { id: '2', name: 'Health Check', expression: '*/30 * * * *', color: COLORS[1] },
+    { id: '3', name: 'Weekly Report', expression: '0 9 * * 1', color: COLORS[2] },
   ]);
-  const [newExpression, setNewExpression] = useState('');
+
+  const [isSimpleMode, setIsSimpleMode] = useState(true);
   const [newName, setNewName] = useState('');
+  const [cronExpression, setCronExpression] = useState('');
+  const [simplePreset, setSimplePreset] = useState(PRESETS[3].value);
   
-  // Calculate Timeline Data
-  const timelineData = useMemo(() => {
+  // -- Derived State: Human Readable --
+  const humanReadable = useMemo(() => {
+    const expr = isSimpleMode ? simplePreset : cronExpression;
+    if (!expr) return '';
+    try {
+        return cronstrue.toString(expr);
+    } catch (e) {
+        return 'Invalid cron expression';
+    }
+  }, [isSimpleMode, simplePreset, cronExpression]);
+
+  // -- Timeline Logic --
+  const { timelineData, collisionWarning, jobNextRuns } = useMemo(() => {
     const now = new Date();
-    const startTime = startOfHour(now);
+    // Start from current hour for better relevance, or just Now
+    const startTime = startOfHour(now); 
     const endTime = addHours(startTime, 24);
     const totalMinutes = 24 * 60;
 
-    const executions: { time: Date; jobId: string; jobName: string; color: string }[] = [];
-    const collisions: { time: Date; count: number }[] = [];
+    const executions: { time: Date; jobId: string; jobName: string; color: string; left: number }[] = [];
+    const collisions: { time: Date; count: number; left: number }[] = [];
+    const jobNextRuns: Record<string, Date> = {};
+
+    let collisionCount = 0;
 
     jobs.forEach(job => {
         try {
@@ -43,20 +90,37 @@ export default function CronTimeline() {
                 iterator: true
             });
 
+            // Get next run for the card info
+            try {
+                const nextRun = cronParser.parseExpression(job.expression).next().toDate();
+                jobNextRuns[job.id] = nextRun;
+            } catch {}
+
+            let count = 0;
+            const MAX_DOTS = 100; // Limit dots per job to avoid crash on "* * * * *"
+
             while (true) {
-                const next = interval.next();
-                const date = next.value.toDate();
-                if (date > endTime) break;
+                if (count > MAX_DOTS) break;
                 
+                const obj = interval.next();
+                const date = obj.value.toDate();
+                
+                if (date > endTime) break;
+
+                const diff = differenceInMinutes(date, startTime);
+                const left = (diff / totalMinutes) * 100;
+
                 executions.push({
                     time: date,
                     jobId: job.id,
                     jobName: job.name,
-                    color: job.color
+                    color: job.color,
+                    left
                 });
+                count++;
             }
         } catch (e) {
-            // Invalid cron, skip
+            console.error(`Error parsing job ${job.name}`, e);
         }
     });
 
@@ -69,23 +133,49 @@ export default function CronTimeline() {
 
     timeMap.forEach((count, key) => {
         if (count > 1) {
-            collisions.push({ time: new Date(key), count });
+            const time = new Date(key);
+            const diff = differenceInMinutes(time, startTime);
+            const left = (diff / totalMinutes) * 100;
+            collisions.push({ time, count, left });
+            collisionCount++;
         }
     });
 
-    return { executions, collisions, startTime, totalMinutes };
+    return { 
+        timelineData: { executions, collisions, startTime }, 
+        collisionWarning: collisionCount > 0 
+            ? `${collisionCount} collisions detected in the next 24 hours!` 
+            : null,
+        jobNextRuns
+    };
   }, [jobs]);
 
-  const addJob = () => {
-    if (!newExpression) return;
+  // -- Handlers --
+  const handleAddJob = () => {
+    const expression = isSimpleMode ? simplePreset : cronExpression;
+    if (!expression) {
+        toast({ title: "Error", description: "Please enter a cron expression", variant: "destructive" });
+        return;
+    }
+    
+    // Validate
+    try {
+        cronParser.parseExpression(expression);
+    } catch (e) {
+        toast({ title: "Error", description: "Invalid cron expression", variant: "destructive" });
+        return;
+    }
+
     setJobs([...jobs, {
         id: Math.random().toString(36).substr(2, 9),
         name: newName || `Job ${jobs.length + 1}`,
-        expression: newExpression,
+        expression,
         color: COLORS[jobs.length % COLORS.length]
     }]);
-    setNewExpression('');
+    
     setNewName('');
+    setCronExpression('');
+    toast({ title: "Job Added", description: "New cron job added to timeline." });
   };
 
   const removeJob = (id: string) => {
@@ -94,171 +184,191 @@ export default function CronTimeline() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] w-full bg-[#09090b] text-white overflow-hidden font-sans">
-      {/* Top: Controls & List */}
-      <div className="h-1/2 flex border-b border-white/10">
-        {/* Form */}
-        <div className="w-1/3 min-w-[350px] p-6 border-r border-white/10 bg-[#09090b] overflow-y-auto">
-             <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2 mb-6">
-                <Clock className="text-blue-500" />
-                Cron Timeline
-             </h2>
-             
-             <div className="space-y-4 bg-[#18181b] p-4 rounded-xl border border-white/5">
-                <div>
-                    <label className="text-xs font-medium text-zinc-400 mb-1 block">Job Name</label>
-                    <input 
-                        type="text" 
-                        value={newName}
-                        onChange={(e) => setNewName(e.target.value)}
-                        placeholder="e.g. Daily Backup"
-                        className="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-                    />
-                </div>
-                <div>
-                    <label className="text-xs font-medium text-zinc-400 mb-1 block">Cron Expression</label>
-                    <input 
-                        type="text" 
-                        value={newExpression}
-                        onChange={(e) => setNewExpression(e.target.value)}
-                        placeholder="* * * * *"
-                        className="w-full bg-[#09090b] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-blue-500"
-                    />
-                </div>
-                <button 
-                    onClick={addJob}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                    Add to Timeline
-                </button>
+      
+      {/* 1. Top Section: Builder & List (Split Layout) */}
+      <div className="flex-1 flex overflow-hidden">
+        
+        {/* Left: Builder Panel */}
+        <div className="w-[400px] border-r border-white/10 bg-[#09090b] flex flex-col z-10">
+             <div className="p-6 border-b border-white/10">
+                 <h2 className="text-xl font-bold text-zinc-100 flex items-center gap-2 mb-1">
+                    <Clock className="text-blue-500" />
+                    Cron Builder
+                 </h2>
+                 <p className="text-xs text-zinc-500">Plan and visualize your scheduled tasks.</p>
              </div>
 
-             <div className="mt-6 space-y-2">
-                <h3 className="text-sm font-medium text-zinc-400 mb-2">Active Jobs</h3>
-                {jobs.map(job => (
-                    <div key={job.id} className="flex items-center justify-between p-3 bg-[#18181b] rounded-lg border border-white/5 group">
-                        <div className="flex items-center gap-3">
-                            <div className={`w-3 h-3 rounded-full ${job.color}`} />
-                            <div>
-                                <div className="text-sm font-medium text-zinc-200">{job.name}</div>
-                                <div className="text-xs text-zinc-500 font-mono">{job.expression}</div>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => removeJob(job.id)}
-                            className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                            &times;
-                        </button>
+             <div className="p-6 space-y-6 flex-1 overflow-y-auto">
+                {/* Name Input */}
+                <div className="space-y-2">
+                    <Label>Job Name</Label>
+                    <Input 
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        placeholder="e.g. Database Backup"
+                        className="bg-zinc-900 border-zinc-700"
+                    />
+                </div>
+
+                {/* Mode Toggle */}
+                <div className="flex items-center justify-between bg-zinc-900 p-3 rounded-lg border border-zinc-800">
+                    <span className="text-sm text-zinc-300">Simple Mode</span>
+                    <Switch checked={isSimpleMode} onCheckedChange={setIsSimpleMode} />
+                </div>
+
+                {/* Expression Input */}
+                <div className="space-y-2">
+                    <Label>Schedule</Label>
+                    {isSimpleMode ? (
+                        <Select value={simplePreset} onValueChange={setSimplePreset}>
+                            <SelectTrigger className="bg-zinc-900 border-zinc-700">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {PRESETS.map(p => (
+                                    <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    ) : (
+                        <Input 
+                            value={cronExpression}
+                            onChange={(e) => setCronExpression(e.target.value)}
+                            placeholder="* * * * *"
+                            className="bg-zinc-900 border-zinc-700 font-mono"
+                        />
+                    )}
+                    
+                    {/* Human Readable Preview */}
+                    <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md flex items-start gap-2">
+                        <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <span className="text-sm text-blue-300">
+                            {humanReadable}
+                        </span>
                     </div>
-                ))}
+                </div>
+
+                <Button onClick={handleAddJob} className="w-full bg-blue-600 hover:bg-blue-500">
+                    <Plus className="w-4 h-4 mr-2" /> Add Job
+                </Button>
              </div>
         </div>
 
-        {/* Info / Collisions */}
-        <div className="flex-1 p-8 bg-[#0c0c0e] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-6">
-                <div className="bg-[#18181b] p-6 rounded-xl border border-white/5">
-                    <h3 className="text-lg font-medium text-zinc-200 flex items-center gap-2 mb-4">
-                        <AlertTriangle className="text-orange-500" size={20} />
-                        Collision Detection
-                    </h3>
-                    {timelineData.collisions.length === 0 ? (
-                        <div className="text-zinc-500 text-sm">No overlapping jobs detected in the next 24 hours.</div>
-                    ) : (
-                        <div className="space-y-3">
-                            {timelineData.collisions.slice(0, 5).map((col, i) => (
-                                <div key={i} className="flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                    <span className="text-red-400 font-mono text-sm">{format(col.time, 'HH:mm:ss')}</span>
-                                    <span className="text-red-300 text-xs bg-red-500/20 px-2 py-1 rounded-full">{col.count} jobs overlap</span>
-                                </div>
-                            ))}
-                            {timelineData.collisions.length > 5 && (
-                                <div className="text-center text-xs text-zinc-500">...and {timelineData.collisions.length - 5} more</div>
-                            )}
-                        </div>
-                    )}
-                </div>
-                
-                <div className="bg-[#18181b] p-6 rounded-xl border border-white/5">
-                     <h3 className="text-lg font-medium text-zinc-200 flex items-center gap-2 mb-4">
-                        <Info className="text-blue-500" size={20} />
-                        Next Execution
-                    </h3>
-                    <div className="space-y-2">
-                        {jobs.map(job => {
-                             try {
-                                const interval = cronParser.parseExpression(job.expression);
-                                const next = interval.next().toDate();
-                                return (
-                                    <div key={job.id} className="flex justify-between text-sm">
-                                        <span className="text-zinc-400">{job.name}</span>
-                                        <span className="font-mono text-zinc-200">{format(next, 'HH:mm:ss')}</span>
-                                    </div>
-                                )
-                             } catch { return null }
-                        })}
+        {/* Right: Active Jobs Grid (Compact) */}
+        <div className="flex-1 bg-[#0c0c0e] p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-medium text-zinc-200">Active Jobs ({jobs.length})</h3>
+                {collisionWarning && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full text-red-400 text-sm animate-pulse">
+                        <AlertTriangle size={14} />
+                        {collisionWarning}
                     </div>
-                </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {jobs.map(job => {
+                    const nextRun = jobNextRuns[job.id];
+                    return (
+                        <div key={job.id} className="group relative bg-[#18181b] border border-white/5 hover:border-white/10 rounded-xl p-4 transition-all hover:shadow-lg">
+                            <div className="flex justify-between items-start mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full ${job.color}`} />
+                                    <h4 className="font-medium text-zinc-200 truncate max-w-[150px]" title={job.name}>{job.name}</h4>
+                                </div>
+                                <button 
+                                    onClick={() => removeJob(job.id)}
+                                    className="text-zinc-500 hover:text-red-400 transition-colors"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900/50 p-2 rounded border border-white/5">
+                                    <code className="font-mono text-blue-400">{job.expression}</code>
+                                </div>
+                                
+                                <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                    <Calendar size={12} />
+                                    <span>Next: {nextRun ? formatDistanceToNow(nextRun, { addSuffix: true }) : 'N/A'}</span>
+                                </div>
+                                <div className="text-[10px] text-zinc-600 truncate">
+                                    {cronstrue.toString(job.expression)}
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
         </div>
       </div>
 
-      {/* Bottom: Timeline */}
-      <div className="flex-1 bg-[#09090b] relative overflow-hidden flex flex-col">
-         <div className="px-6 py-3 border-b border-white/10 flex justify-between items-center bg-[#18181b]">
-            <span className="text-sm font-medium text-zinc-300">24-Hour Timeline</span>
-            <div className="text-xs text-zinc-500">Scroll horizontally to view full day</div>
+      {/* 2. Bottom Section: Timeline Visualizer */}
+      <div className="h-[280px] bg-[#09090b] border-t border-white/10 flex flex-col relative z-20">
+         <div className="px-6 py-2 border-b border-white/5 flex justify-between items-center bg-[#18181b]">
+            <span className="text-xs font-medium text-zinc-300 uppercase tracking-wider">24-Hour Forecast</span>
+            <div className="flex items-center gap-4 text-[10px] text-zinc-500">
+                <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span>Job Execution</span>
+                </div>
+                <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full bg-red-500/50" />
+                    <span>Collision</span>
+                </div>
+            </div>
          </div>
          
-         <div className="flex-1 overflow-x-auto overflow-y-hidden relative custom-scrollbar">
-            <div className="h-full relative min-w-[2000px] flex items-center px-10">
-                {/* Horizontal Line */}
-                <div className="absolute left-0 right-0 top-1/2 h-px bg-zinc-700" />
-
-                {/* Hour Markers */}
+         <div className="flex-1 overflow-x-auto overflow-y-hidden relative custom-scrollbar bg-[#0c0c0e]">
+            {/* Timeline Track */}
+            <div className="h-full relative min-w-[1600px] flex items-center px-8">
+                
+                {/* Grid Lines (Every Hour) */}
                 {Array.from({ length: 25 }).map((_, i) => (
                     <div 
                         key={i} 
-                        className="absolute top-1/2 -translate-y-1/2 h-8 w-px bg-zinc-600 flex flex-col items-center justify-end pb-10"
+                        className="absolute top-0 bottom-0 w-px bg-white/5"
+                        style={{ left: `${(i / 24) * 100}%` }}
+                    />
+                ))}
+
+                {/* Central Axis */}
+                <div className="absolute left-0 right-0 top-1/2 h-px bg-white/10" />
+
+                {/* Hour Labels */}
+                {Array.from({ length: 25 }).map((_, i) => (
+                    <div 
+                        key={`label-${i}`} 
+                        className="absolute top-1/2 mt-4 -translate-x-1/2 text-[10px] text-zinc-600 font-mono"
                         style={{ left: `${(i / 24) * 100}%` }}
                     >
-                        <span className="text-[10px] text-zinc-500 font-mono whitespace-nowrap absolute -top-6">
-                            {format(addHours(timelineData.startTime, i), 'HH:mm')}
-                        </span>
+                        {format(addHours(timelineData.startTime, i), 'HH:mm')}
                     </div>
                 ))}
 
                 {/* Execution Dots */}
-                {timelineData.executions.map((exec, i) => {
-                    const diff = differenceInMinutes(exec.time, timelineData.startTime);
-                    const percent = (diff / timelineData.totalMinutes) * 100;
-                    
-                    if (percent < 0 || percent > 100) return null;
-
-                    return (
-                        <div 
-                            key={i}
-                            className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-[#09090b] cursor-pointer hover:scale-150 transition-transform z-10 ${exec.color}`}
-                            style={{ left: `${percent}%` }}
-                            title={`${exec.jobName} at ${format(exec.time, 'HH:mm')}`}
-                        />
-                    );
-                })}
+                {timelineData.executions.map((exec, i) => (
+                    <div 
+                        key={`exec-${i}`}
+                        className={cn(
+                            "absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border border-[#09090b] shadow-sm cursor-pointer hover:scale-150 hover:z-50 transition-all",
+                            exec.color
+                        )}
+                        style={{ left: `${exec.left}%` }}
+                        title={`${exec.jobName}: ${format(exec.time, 'HH:mm')}`}
+                    />
+                ))}
                 
-                {/* Collision Highlights */}
-                {timelineData.collisions.map((col, i) => {
-                    const diff = differenceInMinutes(col.time, timelineData.startTime);
-                    const percent = (diff / timelineData.totalMinutes) * 100;
-                     if (percent < 0 || percent > 100) return null;
-
-                     return (
-                        <div 
-                            key={`col-${i}`}
-                            className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-500/30 animate-pulse pointer-events-none z-0"
-                            style={{ left: `${percent}%`, transform: 'translate(-50%, -50%)' }}
-                        />
-                     )
-                })}
+                {/* Collisions */}
+                {timelineData.collisions.map((col, i) => (
+                     <div 
+                        key={`col-${i}`}
+                        className="absolute top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-red-500/20 border border-red-500/40 animate-pulse pointer-events-none z-0"
+                        style={{ left: `${col.left}%`, transform: 'translate(-50%, -50%)' }}
+                        title={`${col.count} jobs collide at ${format(col.time, 'HH:mm')}`}
+                    />
+                ))}
             </div>
          </div>
       </div>
