@@ -16,6 +16,7 @@
   },
   "tools": {
     "nginxConfigGenerator": "Nginx Config Generator",
+    "gitRescue": "Git Rescue Generator",
     "dockerComposeVisualizer": "Docker Compose Visualizer",
     "cronTimeline": "Cron Timeline",
     "ogImage": "OG Image Generator",

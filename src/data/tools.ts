@@ -10,6 +10,7 @@ export const toolsData: Tool[][] = [
   // Code Tools
   [
     { id: 'json-visualizer', nameKey: 'tools.jsonVisualizer', categoryKey: 'categories.codeTools', icon: '🕸️', href: '/tools/json-visualizer' },
+    { id: 'git-rescue', nameKey: 'tools.gitRescue', categoryKey: 'categories.codeTools', icon: '🚑', href: '/tools/git-rescue' },
     { id: 'nginx-config-generator', nameKey: 'tools.nginxConfigGenerator', categoryKey: 'categories.codeTools', icon: '⚙️', href: '/tools/nginx-config-generator' },
     { id: 'docker-compose-visualizer', nameKey: 'tools.dockerComposeVisualizer', categoryKey: 'categories.codeTools', icon: '🐳', href: '/tools/docker-compose-visualizer' },
     { id: 'cron-timeline', nameKey: 'tools.cronTimeline', categoryKey: 'categories.codeTools', icon: '⏳', href: '/tools/cron-timeline' },

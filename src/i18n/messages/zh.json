@@ -16,6 +16,7 @@
   },
   "tools": {
     "nginxConfigGenerator": "Nginx 配置生成器",
+    "gitRescue": "Git 救援工具",
     "dockerComposeVisualizer": "Docker Compose 可视化",
     "cronTimeline": "Cron 时间轴",
     "ogImage": "OG 社交图片生成",
