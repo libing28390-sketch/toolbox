@@ -18,11 +18,18 @@ import ReactFlow, {
   applyEdgeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import Editor from '@monaco-editor/react';
+import Editor, { loader } from '@monaco-editor/react';
 import yaml from 'js-yaml';
 import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server, Settings, FileCode, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+
+// Configure monaco loader to use npmmirror for better accessibility in China
+loader.config({
+  paths: {
+    vs: 'https://registry.npmmirror.com/monaco-editor/0.45.0/files/min/vs',
+  },
+});
 import {
   Dialog,
   DialogContent,
