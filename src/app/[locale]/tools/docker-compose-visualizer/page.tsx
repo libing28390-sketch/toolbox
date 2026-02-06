@@ -417,6 +417,14 @@ export default function DockerComposeVisualizer() {
       }
   };
 
+  const editorRef = useRef<any>(null);
+  const monacoRef = useRef<any>(null);
+
+  const handleEditorDidMount = (editor: any, monaco: any) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+  };
+
   // Toolbar Actions
   const handleFormat = () => {
       try {
@@ -428,12 +436,31 @@ export default function DockerComposeVisualizer() {
             flowLevel: -1 
           });
           setYamlContent(formatted);
+          
+          // Clear markers on success
+          if (monacoRef.current && editorRef.current) {
+            monacoRef.current.editor.setModelMarkers(editorRef.current.getModel(), 'yaml', []);
+          }
+
           toast({ title: "Formatted", description: "YAML formatted successfully." });
       } catch (e: any) {
           // Improve error message for syntax errors (e.g. indentation)
           let errorMessage = "Invalid YAML content.";
           if (e.mark && e.reason) {
               errorMessage = `Line ${e.mark.line + 1}, Column ${e.mark.column + 1}: ${e.reason}`;
+              
+              // Set Markers in Editor
+              if (monacoRef.current && editorRef.current) {
+                  const model = editorRef.current.getModel();
+                  monacoRef.current.editor.setModelMarkers(model, 'yaml', [{
+                      startLineNumber: e.mark.line + 1,
+                      startColumn: e.mark.column + 1,
+                      endLineNumber: e.mark.line + 1,
+                      endColumn: model.getLineContent(e.mark.line + 1).length + 1,
+                      message: e.reason,
+                      severity: monacoRef.current.MarkerSeverity.Error
+                  }]);
+              }
           } else if (e.message) {
               errorMessage = e.message;
           }
@@ -527,6 +554,7 @@ export default function DockerComposeVisualizer() {
                 theme="vs-dark"
                 value={yamlContent}
                 onChange={handleEditorChange}
+                onMount={handleEditorDidMount}
                 options={{
                     minimap: { enabled: false },
                     fontSize: 13,
