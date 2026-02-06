@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Clock, Calendar, Trash2, AlertTriangle, Info, Plus, Play, Check, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { format, addHours, differenceInMinutes, startOfHour, isSameMinute, formatDistanceToNow } from 'date-fns';
+import { format, addHours, differenceInMinutes, startOfHour, isSameMinute, formatDistanceToNow, addMinutes } from 'date-fns';
 import cronstrue from 'cronstrue';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -55,25 +55,23 @@ export default function CronTimeline() {
 
   const [isSimpleMode, setIsSimpleMode] = useState(true);
   const [newName, setNewName] = useState('');
-  const [cronExpression, setCronExpression] = useState('');
-  const [simplePreset, setSimplePreset] = useState(PRESETS[3].value);
+  const [cronExpression, setCronExpression] = useState(PRESETS[3].value);
   
   // -- Derived State: Human Readable --
   const humanReadable = useMemo(() => {
-    const expr = isSimpleMode ? simplePreset : cronExpression;
-    if (!expr) return '';
+    if (!cronExpression) return '';
     try {
-        return cronstrue.toString(expr);
+        return cronstrue.toString(cronExpression);
     } catch (e) {
         return 'Invalid cron expression';
     }
-  }, [isSimpleMode, simplePreset, cronExpression]);
+  }, [cronExpression]);
 
   // -- Timeline Logic --
   const { timelineData, collisionWarning, jobNextRuns } = useMemo(() => {
     const now = new Date();
-    // Start from current hour for better relevance, or just Now
-    const startTime = startOfHour(now); 
+    // Start exactly at NOW for accurate forecasting
+    const startTime = now;
     const endTime = addHours(startTime, 24);
     const totalMinutes = 24 * 60;
 
@@ -85,6 +83,7 @@ export default function CronTimeline() {
 
     jobs.forEach(job => {
         try {
+            // Important: Use 'currentDate: startTime' to ensure we find next executions relative to NOW
             const interval = cronParser.parseExpression(job.expression, {
                 currentDate: startTime,
                 iterator: true
@@ -92,7 +91,8 @@ export default function CronTimeline() {
 
             // Get next run for the card info
             try {
-                const nextRun = cronParser.parseExpression(job.expression).next().toDate();
+                // Find next run strictly after now
+                const nextRun = cronParser.parseExpression(job.expression, { currentDate: new Date() }).next().toDate();
                 jobNextRuns[job.id] = nextRun;
             } catch {}
 
@@ -102,21 +102,27 @@ export default function CronTimeline() {
             while (true) {
                 if (count > MAX_DOTS) break;
                 
+                // .next() returns iterator result with value
                 const obj = interval.next();
                 const date = obj.value.toDate();
                 
                 if (date > endTime) break;
 
-                const diff = differenceInMinutes(date, startTime);
+                // Calculate position relative to startTime (NOW)
+                // We use float minutes for smoother positioning
+                const diff = (date.getTime() - startTime.getTime()) / (1000 * 60);
                 const left = (diff / totalMinutes) * 100;
 
-                executions.push({
-                    time: date,
-                    jobId: job.id,
-                    jobName: job.name,
-                    color: job.color,
-                    left
-                });
+                // Only add if within view (0-100%)
+                if (left >= 0 && left <= 100) {
+                    executions.push({
+                        time: date,
+                        jobId: job.id,
+                        jobName: job.name,
+                        color: job.color,
+                        left
+                    });
+                }
                 count++;
             }
         } catch (e) {
@@ -124,19 +130,39 @@ export default function CronTimeline() {
         }
     });
 
-    // Detect Collisions
+    // Detect Collisions (within same minute)
     const timeMap = new Map<string, number>();
     executions.forEach(exec => {
-        const key = exec.time.toISOString();
+        // Round to minute for collision detection
+        const key = startOfHour(exec.time).toISOString() + ':' + exec.time.getMinutes();
         timeMap.set(key, (timeMap.get(key) || 0) + 1);
     });
 
     timeMap.forEach((count, key) => {
         if (count > 1) {
-            const time = new Date(key);
-            const diff = differenceInMinutes(time, startTime);
+            // Reconstruct time roughly from key isn't accurate enough for positioning if we used the simplified key above
+            // Better to find one of the executions that matches this key
+            // But for simplicity, let's find the executions that share this minute
+            // Actually, we can just filter executions.
+            // Let's iterate executions again to find representative time
+            // A simpler way:
+        }
+    });
+    
+    // Better Collision Logic: Group by Minute
+    const groups: Record<string, typeof executions> = {};
+    executions.forEach(exec => {
+        const key = Math.floor(exec.time.getTime() / 60000).toString(); // Minute timestamp
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(exec);
+    });
+
+    Object.values(groups).forEach(group => {
+        if (group.length > 1) {
+            const time = group[0].time;
+            const diff = (time.getTime() - startTime.getTime()) / (1000 * 60);
             const left = (diff / totalMinutes) * 100;
-            collisions.push({ time, count, left });
+            collisions.push({ time, count: group.length, left });
             collisionCount++;
         }
     });
@@ -152,15 +178,15 @@ export default function CronTimeline() {
 
   // -- Handlers --
   const handleAddJob = () => {
-    const expression = isSimpleMode ? simplePreset : cronExpression;
-    if (!expression) {
+    // Single source of truth: cronExpression
+    if (!cronExpression) {
         toast({ title: "Error", description: "Please enter a cron expression", variant: "destructive" });
         return;
     }
     
     // Validate
     try {
-        cronParser.parseExpression(expression);
+        cronParser.parseExpression(cronExpression);
     } catch (e) {
         toast({ title: "Error", description: "Invalid cron expression", variant: "destructive" });
         return;
@@ -169,17 +195,26 @@ export default function CronTimeline() {
     setJobs([...jobs, {
         id: Math.random().toString(36).substr(2, 9),
         name: newName || `Job ${jobs.length + 1}`,
-        expression,
+        expression: cronExpression,
         color: COLORS[jobs.length % COLORS.length]
     }]);
     
     setNewName('');
-    setCronExpression('');
+    // Don't clear expression if in simple mode, might want to add similar? 
+    // Or clear it. Let's clear it to indicate success.
+    // If simple mode, reset to default or keep? Let's keep for better UX (add another similar job)
+    // Actually, user usually wants to add one. Let's clear.
+    // setCronExpression(''); 
     toast({ title: "Job Added", description: "New cron job added to timeline." });
   };
 
   const removeJob = (id: string) => {
     setJobs(jobs.filter(j => j.id !== id));
+  };
+
+  // Handle Preset Change
+  const handlePresetChange = (val: string) => {
+      setCronExpression(val);
   };
 
   return (
@@ -220,9 +255,9 @@ export default function CronTimeline() {
                 <div className="space-y-2">
                     <Label>Schedule</Label>
                     {isSimpleMode ? (
-                        <Select value={simplePreset} onValueChange={setSimplePreset}>
+                        <Select value={cronExpression} onValueChange={handlePresetChange}>
                             <SelectTrigger className="bg-zinc-900 border-zinc-700">
-                                <SelectValue />
+                                <SelectValue placeholder="Select a preset" />
                             </SelectTrigger>
                             <SelectContent>
                                 {PRESETS.map(p => (
@@ -307,7 +342,7 @@ export default function CronTimeline() {
       {/* 2. Bottom Section: Timeline Visualizer */}
       <div className="h-[280px] bg-[#09090b] border-t border-white/10 flex flex-col relative z-20">
          <div className="px-6 py-2 border-b border-white/5 flex justify-between items-center bg-[#18181b]">
-            <span className="text-xs font-medium text-zinc-300 uppercase tracking-wider">24-Hour Forecast</span>
+            <span className="text-xs font-medium text-zinc-300 uppercase tracking-wider">24-Hour Forecast (From Now)</span>
             <div className="flex items-center gap-4 text-[10px] text-zinc-500">
                 <div className="flex items-center gap-1">
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
@@ -324,28 +359,32 @@ export default function CronTimeline() {
             {/* Timeline Track */}
             <div className="h-full relative min-w-[1600px] flex items-center px-8">
                 
-                {/* Grid Lines (Every Hour) */}
-                {Array.from({ length: 25 }).map((_, i) => (
-                    <div 
-                        key={i} 
-                        className="absolute top-0 bottom-0 w-px bg-white/5"
-                        style={{ left: `${(i / 24) * 100}%` }}
-                    />
-                ))}
+                {/* Grid Lines (Every Hour relative to start) */}
+                {Array.from({ length: 25 }).map((_, i) => {
+                    // Calculate label time: startTime + i hours
+                    // We want to snap to nearest hour for grid lines?
+                    // Actually, "24-Hour Forecast (From Now)" usually implies absolute grid lines (e.g. 13:00, 14:00) 
+                    // that drift.
+                    // But simpler to just show relative hours or absolute time ticks.
+                    // Let's show absolute time ticks.
+                    
+                    const tickTime = addHours(timelineData.startTime, i);
+                    
+                    return (
+                        <div 
+                            key={i} 
+                            className="absolute top-0 bottom-0 w-px bg-white/5"
+                            style={{ left: `${(i / 24) * 100}%` }}
+                        >
+                            <div className="absolute top-1/2 mt-4 -translate-x-1/2 text-[10px] text-zinc-600 font-mono">
+                                {format(tickTime, 'HH:mm')}
+                            </div>
+                        </div>
+                    )
+                })}
 
                 {/* Central Axis */}
                 <div className="absolute left-0 right-0 top-1/2 h-px bg-white/10" />
-
-                {/* Hour Labels */}
-                {Array.from({ length: 25 }).map((_, i) => (
-                    <div 
-                        key={`label-${i}`} 
-                        className="absolute top-1/2 mt-4 -translate-x-1/2 text-[10px] text-zinc-600 font-mono"
-                        style={{ left: `${(i / 24) * 100}%` }}
-                    >
-                        {format(addHours(timelineData.startTime, i), 'HH:mm')}
-                    </div>
-                ))}
 
                 {/* Execution Dots */}
                 {timelineData.executions.map((exec, i) => (
