@@ -110,8 +110,8 @@ export default function CronTimeline() {
 
                 // Calculate position relative to startTime (NOW)
                 // We use float minutes for smoother positioning
-                const diff = (date.getTime() - startTime.getTime()) / (1000 * 60);
-                const left = (diff / totalMinutes) * 100;
+                const diff = date.getTime() - startTime.getTime();
+                const left = (diff / (24 * 60 * 60 * 1000)) * 100;
 
                 // Only add if within view (0-100%)
                 if (left >= 0 && left <= 100) {
@@ -160,8 +160,8 @@ export default function CronTimeline() {
     Object.values(groups).forEach(group => {
         if (group.length > 1) {
             const time = group[0].time;
-            const diff = (time.getTime() - startTime.getTime()) / (1000 * 60);
-            const left = (diff / totalMinutes) * 100;
+            const diff = time.getTime() - startTime.getTime();
+            const left = (diff / (24 * 60 * 60 * 1000)) * 100;
             collisions.push({ time, count: group.length, left });
             collisionCount++;
         }
