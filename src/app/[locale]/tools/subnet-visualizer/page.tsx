@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 // Redesigned: IP Grid Matrix (16x16) for /24 visualization
@@ -96,7 +97,24 @@ export default function SubnetVisualizerPage() {
                 const baseClasses = "w-full h-8 rounded-sm flex items-center justify-center text-[10px] font-mono transition-all duration-150";
                 const typeBg = c.type === "network" ? "bg-amber-500 text-zinc-900" : c.type === "gateway" ? "bg-emerald-500 text-zinc-900" : c.type === "broadcast" ? "bg-rose-500 text-zinc-900" : "bg-slate-800 text-zinc-200 hover:bg-blue-500 hover:text-white";
                 return (
-                  <Tooltip key={c.index} content={<div className="text-xs font-mono">{c.ip}</div>}>
+                  <Tooltip
+                    key={c.index}
+                    content={
+                      <div className="flex items-center gap-2">
+                        <div className="font-mono text-xs">{c.ip}</div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard?.writeText(c.ip);
+                            try { toast.success('IP copied'); } catch {}
+                          }}
+                          className="ml-2 text-xs px-2 py-0.5 rounded bg-zinc-800/60 hover:bg-zinc-700"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    }
+                  >
                     <div
                       onMouseEnter={() => setHovered(c.index)}
                       onMouseLeave={() => setHovered((h) => (h === c.index ? null : h))}
