@@ -19,7 +19,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const cronParser = require('cron-parser');
+const cronParserModule = require('cron-parser');
+
+// Helper to handle cron-parser import differences across environments/versions
+const parseCron = (expression: string, options?: any) => {
+    const parser = cronParserModule.default || cronParserModule;
+    // v5 uses static parse(), older versions or some exports use parseExpression()
+    if (typeof parser.parse === 'function') {
+        return parser.parse(expression, options);
+    }
+    if (typeof parser.parseExpression === 'function') {
+        return parser.parseExpression(expression, options);
+    }
+    throw new Error('Unable to find cron parse function');
+};
 
 interface CronJob {
   id: string;
@@ -84,7 +97,7 @@ export default function CronTimeline() {
     jobs.forEach(job => {
         try {
             // Important: Use 'currentDate: startTime' to ensure we find next executions relative to NOW
-            const interval = cronParser.parseExpression(job.expression, {
+            const interval = parseCron(job.expression, {
                 currentDate: startTime,
                 iterator: true
             });
@@ -92,7 +105,7 @@ export default function CronTimeline() {
             // Get next run for the card info
             try {
                 // Find next run strictly after now
-                const nextRun = cronParser.parseExpression(job.expression, { currentDate: new Date() }).next().toDate();
+                const nextRun = parseCron(job.expression, { currentDate: new Date() }).next().toDate();
                 jobNextRuns[job.id] = nextRun;
             } catch {}
 
@@ -186,7 +199,7 @@ export default function CronTimeline() {
     
     // Validate
     try {
-        cronParser.parseExpression(cronExpression);
+        parseCron(cronExpression);
     } catch (e: any) {
         console.error("Cron validation failed", e);
         toast({ title: "Error", description: `Invalid cron expression: ${e.message}`, variant: "destructive" });
