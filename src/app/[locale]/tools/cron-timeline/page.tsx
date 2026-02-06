@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-// Use require for cron-parser to avoid type issues if not fully typed
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const cronParser = require('cron-parser');
 
 interface CronJob {
@@ -187,8 +187,9 @@ export default function CronTimeline() {
     // Validate
     try {
         cronParser.parseExpression(cronExpression);
-    } catch (e) {
-        toast({ title: "Error", description: "Invalid cron expression", variant: "destructive" });
+    } catch (e: any) {
+        console.error("Cron validation failed", e);
+        toast({ title: "Error", description: `Invalid cron expression: ${e.message}`, variant: "destructive" });
         return;
     }
 
