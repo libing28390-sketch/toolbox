@@ -43,7 +43,6 @@ server {
 `;
     }
 
-    config += `
     if (proxyPass) {
         // When proxy_pass is set, root is typically not needed for / location, 
         // but we keep it global or just ignore it in location block. 
