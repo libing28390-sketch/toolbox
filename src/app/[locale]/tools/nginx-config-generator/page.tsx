@@ -44,10 +44,18 @@ server {
     }
 
     config += `
-    # Root Directory
+    if (proxyPass) {
+        // When proxy_pass is set, root is typically not needed for / location, 
+        // but we keep it global or just ignore it in location block. 
+        // Best practice: if proxy, don't use root in location /.
+    } else {
+        config += `    # Root Directory
     root ${root};
     index index.html index.htm index.nginx-debian.html;
+`;
+    }
 
+    config += `
     # Logging
     access_log /var/log/nginx/${domain}.access.log;
     error_log /var/log/nginx/${domain}.error.log;
@@ -55,11 +63,7 @@ server {
     location / {
 `;
 
-    if (isSpa) {
-        config += `        # SPA Support
-        try_files $uri $uri/ /index.html;
-`;
-    } else if (proxyPass) {
+    if (proxyPass) {
          config += `        # Proxy Pass
         proxy_pass ${proxyPass};
         proxy_http_version 1.1;
@@ -67,6 +71,10 @@ server {
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_cache_bypass $http_upgrade;
+`;
+    } else if (isSpa) {
+        config += `        # SPA Support
+        try_files $uri $uri/ /index.html;
 `;
     } else {
         config += `        try_files $uri $uri/ =404;
