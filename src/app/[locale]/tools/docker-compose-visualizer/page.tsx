@@ -24,10 +24,10 @@ import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server, Setti
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-// Configure monaco loader to use npmmirror for better accessibility in China
+// Configure monaco loader to use local files for best performance and offline support
 loader.config({
   paths: {
-    vs: 'https://registry.npmmirror.com/monaco-editor/0.45.0/files/min/vs',
+    vs: '/monaco-editor/vs',
   },
 });
 import {
