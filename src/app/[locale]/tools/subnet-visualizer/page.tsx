@@ -42,16 +42,6 @@ function ipv6BytesToString(bytes: number[]) {
   return addr.toString();
 }
 
-function ipv6BigIntToString(v: bigint) {
-  const bytes = new Array<number>(16).fill(0);
-  let value = v;
-  for (let i = 15; i >= 0; i--) {
-    bytes[i] = Number(value & 0xffn);
-    value >>= 8n;
-  }
-  return ipv6BytesToString(bytes);
-}
-
 export default function SubnetVisualizerPage() {
   // draft input (what user is typing) vs applied input (what grid is showing)
   const [draftInput, setDraftInput] = useState("192.168.1.0/24");
@@ -76,7 +66,7 @@ export default function SubnetVisualizerPage() {
       mode: "IPv4" as "IPv4" | "IPv6",
       gridLabel: "192.168.1.0/24",
       base24Network: ipToNumber("192.168.1.0"),
-      ipv6BaseBigInt: null as bigint | null,
+      ipv6BaseBytes: null as number[] | null,
       startIndex: 0,
       endIndex: 255,
       gatewayIndex: 1 as number | null,
@@ -113,7 +103,7 @@ export default function SubnetVisualizerPage() {
         mode: "IPv4" as const,
         gridLabel,
         base24Network,
-        ipv6BaseBigInt: null as bigint | null,
+        ipv6BaseBytes: null as number[] | null,
         startIndex,
         endIndex,
         gatewayIndex,
@@ -130,13 +120,10 @@ export default function SubnetVisualizerPage() {
       // and visualize that /120 slice.
       const addr = ipaddr.parse(res.networkAddress) as ipaddr.IPv6;
       const bytes = addr.toByteArray();
-      let baseBigInt = 0n;
-      for (const b of bytes) {
-        baseBigInt = (baseBigInt << 8n) | BigInt(b);
-      }
-      baseBigInt = (baseBigInt >> 8n) << 8n; // zero last 8 bits
+      const baseBytes = bytes.slice(0, 16);
+      baseBytes[15] = 0; // zero last 8 bits (one /120 slice)
 
-      const gridLabel = `${ipv6BigIntToString(baseBigInt)}/120`;
+      const gridLabel = `${ipv6BytesToString(baseBytes)}/120`;
       const note =
         "IPv6: visualizing a /120 slice (last 8 bits 0–255) inside this subnet.";
 
@@ -144,7 +131,7 @@ export default function SubnetVisualizerPage() {
         mode: "IPv6" as const,
         gridLabel,
         base24Network: 0,
-        ipv6BaseBigInt: baseBigInt,
+        ipv6BaseBytes: baseBytes,
         startIndex: 0,
         endIndex: 255,
         gatewayIndex: null as number | null,
@@ -185,9 +172,11 @@ export default function SubnetVisualizerPage() {
     }
 
     // IPv6 grid
-    if (applied.ok && applied.res.type === "IPv6" && base.mode === "IPv6" && base.ipv6BaseBigInt !== null) {
+    if (applied.ok && applied.res.type === "IPv6" && base.mode === "IPv6" && base.ipv6BaseBytes !== null) {
       const arr = new Array(256).fill(0).map((_, i) => {
-        const ip = ipv6BigIntToString(base.ipv6BaseBigInt! + BigInt(i));
+        const addrBytes = base.ipv6BaseBytes!.slice(0, 16);
+        addrBytes[15] = i & 0xff;
+        const ip = ipv6BytesToString(addrBytes);
         const octet = i;
 
         const inSubnet = true;
