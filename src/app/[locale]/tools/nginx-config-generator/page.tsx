@@ -65,7 +65,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
-    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    # add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always; # Uncomment if you know what you are doing
 `;
         if (useSsl) {
              config += `    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -81,7 +81,7 @@ server {
     gzip_vary on;
     gzip_min_length 10240;
     gzip_proxied expired no-cache no-store private auth;
-    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
     gzip_disable "MSIE [1-6]\\.";
 `;
     }
@@ -113,6 +113,9 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
 `;
     } else if (isSpa) {
@@ -247,7 +250,7 @@ server {
                 <div>
                     <div className="text-sm font-medium text-zinc-200">Single Page App</div>
                     <div className="text-xs text-zinc-500">
-                        {proxyPass ? 'Disabled when Proxy Pass is set' : 'Add try_files for React/Vue'}
+                        {proxyPass ? 'Routing handled by backend in Proxy mode' : 'Add try_files for React/Vue'}
                     </div>
                 </div>
               </div>
