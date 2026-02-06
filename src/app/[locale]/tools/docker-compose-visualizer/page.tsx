@@ -422,8 +422,15 @@ export default function DockerComposeVisualizer() {
           });
           setYamlContent(formatted);
           toast({ title: "Formatted", description: "YAML formatted successfully." });
-      } catch (e) {
-          toast({ title: "Format Failed", description: "Invalid YAML content.", variant: "destructive" });
+      } catch (e: any) {
+          // Improve error message for syntax errors (e.g. indentation)
+          let errorMessage = "Invalid YAML content.";
+          if (e.mark && e.reason) {
+              errorMessage = `Line ${e.mark.line + 1}, Column ${e.mark.column + 1}: ${e.reason}`;
+          } else if (e.message) {
+              errorMessage = e.message;
+          }
+          toast({ title: "Format Failed", description: errorMessage, variant: "destructive" });
       }
   };
 
@@ -519,6 +526,9 @@ export default function DockerComposeVisualizer() {
                     scrollBeyondLastLine: false,
                     padding: { top: 16, bottom: 16 },
                     fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+                    tabSize: 2,
+                    insertSpaces: true,
+                    detectIndentation: false,
                 }}
             />
         </div>
