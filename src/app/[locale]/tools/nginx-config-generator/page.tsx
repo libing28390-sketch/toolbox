@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Copy, Download, RefreshCw, Server, Shield, Globe, Folder, ArrowRightLeft } from 'lucide-react';
+import { Copy, Download, RefreshCw, Server, Shield, Globe, Folder, ArrowRightLeft, Settings, ChevronDown, ChevronUp, Lock, Zap, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
@@ -14,6 +14,13 @@ export default function NginxConfigGenerator() {
   const [proxyPass, setProxyPass] = useState('http://localhost:3000');
   const [useSsl, setUseSsl] = useState(false);
   const [isSpa, setIsSpa] = useState(false);
+  
+  // Advanced Settings State
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [useGzip, setUseGzip] = useState(true);
+  const [useSecurity, setUseSecurity] = useState(true);
+  const [maxUploadSize, setMaxUploadSize] = useState('10M');
+
   const [generatedConfig, setGeneratedConfig] = useState('');
   const [copied, setCopied] = useState(false);
 
@@ -43,12 +50,49 @@ server {
 `;
     }
 
+    // Basic Settings
+    config += `
+    # Basic Settings
+    client_max_body_size ${maxUploadSize};
+`;
+
+    // Security Headers
+    if (useSecurity) {
+        config += `
+    # Security Headers
+    server_tokens off;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+`;
+        if (useSsl) {
+             config += `    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+`;
+        }
+    }
+
+    // Gzip Compression
+    if (useGzip) {
+        config += `
+    # Gzip Compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 10240;
+    gzip_proxied expired no-cache no-store private auth;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml;
+    gzip_disable "MSIE [1-6]\\.";
+`;
+    }
+
     if (proxyPass) {
         // When proxy_pass is set, root is typically not needed for / location, 
         // but we keep it global or just ignore it in location block. 
         // Best practice: if proxy, don't use root in location /.
     } else {
-        config += `    # Root Directory
+        config += `
+    # Root Directory
     root ${root};
     index index.html index.htm index.nginx-debian.html;
 `;
@@ -96,7 +140,7 @@ server {
     config += `}`;
 
     setGeneratedConfig(config);
-  }, [domain, root, proxyPass, useSsl, isSpa]);
+  }, [domain, root, proxyPass, useSsl, isSpa, useGzip, useSecurity, maxUploadSize]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedConfig);
@@ -192,23 +236,93 @@ server {
               />
             </label>
 
-            <label className="flex items-center justify-between p-3 rounded-lg bg-[#18181b] border border-white/5 hover:border-white/10 transition-colors cursor-pointer group">
+            <label className={cn(
+                "flex items-center justify-between p-3 rounded-lg bg-[#18181b] border border-white/5 transition-colors cursor-pointer group",
+                proxyPass ? "opacity-50 cursor-not-allowed" : "hover:border-white/10"
+            )}>
               <div className="flex items-center gap-3">
-                <div className={cn("p-2 rounded-md transition-colors", isSpa ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-500")}>
+                <div className={cn("p-2 rounded-md transition-colors", isSpa && !proxyPass ? "bg-purple-500/20 text-purple-400" : "bg-zinc-800 text-zinc-500")}>
                     <RefreshCw size={18} />
                 </div>
                 <div>
                     <div className="text-sm font-medium text-zinc-200">Single Page App</div>
-                    <div className="text-xs text-zinc-500">Add try_files for React/Vue</div>
+                    <div className="text-xs text-zinc-500">
+                        {proxyPass ? 'Disabled when Proxy Pass is set' : 'Add try_files for React/Vue'}
+                    </div>
                 </div>
               </div>
               <input 
                 type="checkbox" 
-                checked={isSpa} 
+                checked={isSpa && !proxyPass} 
                 onChange={(e) => setIsSpa(e.target.checked)}
-                className="w-4 h-4 rounded border-zinc-600 text-blue-600 focus:ring-blue-500 bg-zinc-900"
+                disabled={!!proxyPass}
+                className="w-4 h-4 rounded border-zinc-600 text-blue-600 focus:ring-blue-500 bg-zinc-900 disabled:opacity-50"
               />
             </label>
+          </div>
+
+          {/* Advanced Settings */}
+          <div className="border border-white/10 rounded-xl overflow-hidden bg-[#18181b]/50">
+            <button
+                onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+                className="w-full flex items-center justify-between p-4 bg-[#18181b] hover:bg-[#202024] transition-colors"
+            >
+                <div className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+                    <Settings size={16} className="text-blue-500" />
+                    Advanced Settings
+                </div>
+                {isAdvancedOpen ? <ChevronUp size={16} className="text-zinc-500" /> : <ChevronDown size={16} className="text-zinc-500" />}
+            </button>
+            
+            {isAdvancedOpen && (
+                <div className="p-4 space-y-4 bg-[#18181b]/30 border-t border-white/10">
+                    {/* Gzip */}
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="flex items-center gap-3">
+                            <div className={cn("p-1.5 rounded-md transition-colors", useGzip ? "bg-orange-500/20 text-orange-400" : "bg-zinc-800 text-zinc-500")}>
+                                <Zap size={16} />
+                            </div>
+                            <span className="text-sm text-zinc-300">Gzip Compression</span>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            checked={useGzip} 
+                            onChange={(e) => setUseGzip(e.target.checked)}
+                            className="w-4 h-4 rounded border-zinc-600 text-blue-600 focus:ring-blue-500 bg-zinc-900"
+                        />
+                    </label>
+
+                    {/* Security Headers */}
+                    <label className="flex items-center justify-between cursor-pointer group">
+                        <div className="flex items-center gap-3">
+                            <div className={cn("p-1.5 rounded-md transition-colors", useSecurity ? "bg-red-500/20 text-red-400" : "bg-zinc-800 text-zinc-500")}>
+                                <Lock size={16} />
+                            </div>
+                            <span className="text-sm text-zinc-300">Security Headers</span>
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            checked={useSecurity} 
+                            onChange={(e) => setUseSecurity(e.target.checked)}
+                            className="w-4 h-4 rounded border-zinc-600 text-blue-600 focus:ring-blue-500 bg-zinc-900"
+                        />
+                    </label>
+
+                    {/* Max Upload Size */}
+                    <div className="pt-2">
+                        <label className="text-xs font-medium text-zinc-400 flex items-center gap-2 mb-2">
+                            <HardDrive size={14} /> Max Upload Size
+                        </label>
+                        <input
+                            type="text"
+                            value={maxUploadSize}
+                            onChange={(e) => setMaxUploadSize(e.target.value)}
+                            className="w-full bg-[#09090b] border border-white/10 rounded px-3 py-1.5 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500/50 placeholder:text-zinc-600"
+                            placeholder="10M"
+                        />
+                    </div>
+                </div>
+            )}
           </div>
         </div>
       </div>
