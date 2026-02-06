@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowRight, Globe2, Network, Route } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { networkTools } from "@/lib/network-tools";
+import { useParams } from "next/navigation";
 
 type Hop = {
   index: number;
@@ -12,6 +14,17 @@ type Hop = {
   avgRttMs?: number;
   minRttMs?: number;
   maxRttMs?: number;
+};
+
+type IpMetaStatus = "loading" | "ok" | "error";
+
+type IpMeta = {
+  status: IpMetaStatus;
+  as?: string;
+  isp?: string;
+  org?: string;
+  country?: string;
+  city?: string;
 };
 
 const sampleTraceroute = [
@@ -73,9 +86,58 @@ function getSeverity(avg?: number) {
   return "bad" as const;
 }
 
+function isPrivateIp(ip: string) {
+  // Simple IPv4 private ranges; IPv6/local-link are rare in traceroute and safe to query.
+  if (/^(10\.)/.test(ip)) return true;
+  if (/^(192\.168\.)/.test(ip)) return true;
+  if (/^(172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(ip)) return true;
+  if (/^(127\.)/.test(ip)) return true;
+  return false;
+}
+
 export default function NetworkPathVisualizerPage() {
   const [input, setInput] = useState(sampleTraceroute);
   const hops = useMemo(() => parseTraceroute(input), [input]);
+  const [ipMetaMap, setIpMetaMap] = useState<Record<string, IpMeta>>({});
+  const params = useParams<{ locale?: string }>();
+
+  useEffect(() => {
+    const lang = params.locale?.startsWith("zh") ? "zh" : "en";
+    const uniqueIps = Array.from(
+      new Set(hops.map((h) => h.ip).filter((v): v is string => !!v)),
+    );
+
+    uniqueIps.forEach((ip) => {
+      if (ipMetaMap[ip] || isPrivateIp(ip)) return;
+
+      setIpMetaMap((prev) => ({
+        ...prev,
+        [ip]: { status: "loading" },
+      }));
+
+      networkTools
+        .lookupIp(ip, lang)
+        .then((data: any) => {
+          setIpMetaMap((prev) => ({
+            ...prev,
+            [ip]: {
+              status: "ok",
+              as: data.as,
+              isp: data.isp,
+              org: data.org,
+              country: data.country,
+              city: data.city,
+            },
+          }));
+        })
+        .catch(() => {
+          setIpMetaMap((prev) => ({
+            ...prev,
+            [ip]: { status: "error" },
+          }));
+        });
+    });
+  }, [hops, ipMetaMap, params.locale]);
 
   const handleFillSample = () => {
     setInput(sampleTraceroute);
@@ -193,6 +255,8 @@ export default function NetworkPathVisualizerPage() {
                         ? "bg-rose-500/20 text-rose-300 border-rose-500/60"
                         : "bg-zinc-800/60 text-zinc-400 border-zinc-700";
 
+                const meta = hop.ip ? ipMetaMap[hop.ip] : undefined;
+
                 return (
                   <div key={hop.index} className="relative flex gap-3">
                     <div className="absolute -left-[18px] top-3 w-3 h-3 rounded-full border border-zinc-900 bg-zinc-950 flex items-center justify-center">
@@ -216,8 +280,45 @@ export default function NetworkPathVisualizerPage() {
                         </span>
                       </div>
                       {hop.ip && (
-                        <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">
+                        <div className="text-[11px] font-mono text-zinc-400 truncate mb-1">
                           {hop.ip}
+                        </div>
+                      )}
+                      {hop.ip && (
+                        <div className="text-[10px] text-zinc-500 flex flex-col gap-0.5 mb-1">
+                          {meta?.status === "loading" && (
+                            <span>AS / ISP 信息查询中...</span>
+                          )}
+                          {meta?.status === "ok" && (
+                            <>
+                              {meta.as && (
+                                <span>
+                                  <span className="text-zinc-500">AS</span>{" "}
+                                  <span className="font-mono text-zinc-200">{meta.as}</span>
+                                </span>
+                              )}
+                              {(meta.isp || meta.org) && (
+                                <span className="truncate">
+                                  <span className="text-zinc-500">ISP</span>{" "}
+                                  <span className="font-mono text-zinc-200">
+                                    {meta.org || meta.isp}
+                                  </span>
+                                </span>
+                              )}
+                              {(meta.country || meta.city) && (
+                                <span className="truncate">
+                                  <span className="text-zinc-500">Location</span>{" "}
+                                  <span className="font-mono text-zinc-200">
+                                    {meta.country}
+                                    {meta.city ? ` · ${meta.city}` : ""}
+                                  </span>
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {meta?.status === "error" && (
+                            <span className="text-rose-400">AS 信息查询失败</span>
+                          )}
                         </div>
                       )}
                       {hop.minRttMs != null && hop.maxRttMs != null && (
