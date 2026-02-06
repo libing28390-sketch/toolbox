@@ -524,7 +524,7 @@ export default function DockerComposeVisualizer() {
            </div>
            
            <div className="flex items-center gap-2">
-             <Button variant="ghost" size="sm" onClick={handleFormat} className="h-8 text-zinc-400 hover:text-white" title="Format YAML">
+             <Button variant="ghost" size="sm" onClick={handleFormat} className="h-8 text-zinc-400 hover:text-white" title="Auto-format YAML indentation">
                 <Wand2 size={14} className="mr-1" /> Format
              </Button>
              
