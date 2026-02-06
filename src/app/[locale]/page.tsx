@@ -19,6 +19,12 @@ export default function Home() {
       router.push('/tools/json-visualizer');
     } else if (id === 'nginx-config-generator') {
       router.push('/tools/nginx-config-generator');
+    } else if (id === 'docker-compose-visualizer') {
+      router.push('/tools/docker-compose-visualizer');
+    } else if (id === 'cron-timeline') {
+      router.push('/tools/cron-timeline');
+    } else if (id === 'og-image') {
+      router.push('/tools/og-image');
     } else {
       setSelectedTool(id);
     }

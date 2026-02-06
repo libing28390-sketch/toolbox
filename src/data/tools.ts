@@ -10,6 +10,9 @@ export const toolsData: Tool[][] = [
   [
     { id: 'json-visualizer', nameKey: 'tools.jsonVisualizer', categoryKey: 'categories.codeTools', icon: '🕸️' },
     { id: 'nginx-config-generator', nameKey: 'tools.nginxConfigGenerator', categoryKey: 'categories.codeTools', icon: '⚙️' },
+    { id: 'docker-compose-visualizer', nameKey: 'tools.dockerComposeVisualizer', categoryKey: 'categories.codeTools', icon: '🐳' },
+    { id: 'cron-timeline', nameKey: 'tools.cronTimeline', categoryKey: 'categories.codeTools', icon: '⏳' },
+    { id: 'og-image', nameKey: 'tools.ogImage', categoryKey: 'categories.imageTools', icon: '🖼️' },
     { id: 'json-formatter', nameKey: 'tools.jsonFormatter', categoryKey: 'categories.codeTools', icon: '{}' },
     { id: 'xml-formatter', nameKey: 'tools.xmlFormatter', categoryKey: 'categories.codeTools', icon: '<>' },
     { id: 'code-prettify', nameKey: 'tools.codePrettify', categoryKey: 'categories.codeTools', icon: '✨' },

@@ -16,6 +16,9 @@
   },
   "tools": {
     "nginxConfigGenerator": "Nginx Config Generator",
+    "dockerComposeVisualizer": "Docker Compose Visualizer",
+    "cronTimeline": "Cron Timeline",
+    "ogImage": "OG Image Generator",
     "jsonVisualizer": "JSON Visualizer",
     "jsonFormatter": "JSON Formatter",
     "xmlFormatter": "XML Formatter",
