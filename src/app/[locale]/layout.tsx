@@ -3,6 +3,7 @@ import { getMessages } from 'next-intl/server';
 import { NextIntlClientProvider } from 'next-intl';
 // import Script from 'next/script'; // 验证阶段建议暂时移除这个组件，改用原生标签
 import '../globals.css';
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: 'ToolBox - Developer Tools',
@@ -33,6 +34,7 @@ export default async function RootLayout({ children, params }: RootLayoutProps) 
       <body className="antialiased">
         <NextIntlClientProvider messages={messages}>
           {children}
+          <Toaster />
         </NextIntlClientProvider>
       </body>
     </html>

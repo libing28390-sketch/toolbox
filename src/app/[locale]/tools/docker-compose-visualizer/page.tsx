@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -14,12 +14,32 @@ import ReactFlow, {
   Handle,
   Position,
   NodeProps,
+  EdgeChange,
+  applyEdgeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import Editor from '@monaco-editor/react';
 import yaml from 'js-yaml';
-import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server } from 'lucide-react';
+import { Download, Plus, Save, Play, Layers, Box, Globe, Database, Server, Settings, FileCode, Wand2, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // --- Types ---
 interface Service {
@@ -128,11 +148,47 @@ volumes:
   db-data:
 `;
 
+const TEMPLATES = {
+  redis: `  redis:
+    image: redis:alpine
+    restart: always`,
+  mysql: `  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: app_db
+    ports:
+      - "3306:3306"`,
+  nginx: `  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro`,
+  node: `  app:
+    image: node:18-alpine
+    working_dir: /app
+    command: npm start
+    ports:
+      - "3000:3000"`
+};
+
 export default function DockerComposeVisualizer() {
   const [yamlContent, setYamlContent] = useState(DEFAULT_YAML);
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Edit Node State
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({
+    serviceName: '',
+    image: '',
+    ports: '',
+    volumes: ''
+  });
 
   // Parse YAML to Nodes/Edges
   const parseYamlToGraph = useCallback((content: string) => {
@@ -144,15 +200,20 @@ export default function DockerComposeVisualizer() {
       const newEdges: Edge[] = [];
       const services = Object.entries(parsed.services);
       
-      // Simple grid layout logic
-      const spacingX = 250;
-      const spacingY = 150;
+      // Calculate layout
+      // Simple grid for now, but preserving positions if node already exists could be an enhancement
+      const spacingX = 300;
+      const spacingY = 200;
       const cols = 3;
 
       services.forEach(([name, config], index) => {
         const row = Math.floor(index / cols);
         const col = index % cols;
 
+        // Try to find existing node to preserve position if possible (basic)
+        // For full preservation we need to store layout in state/localstorage, 
+        // but here we just re-layout to keep it simple and consistent with YAML order.
+        
         newNodes.push({
           id: name,
           type: 'service',
@@ -160,7 +221,8 @@ export default function DockerComposeVisualizer() {
           data: { 
             serviceName: name,
             image: config.image,
-            ports: config.ports
+            ports: config.ports,
+            volumes: config.volumes
           },
         });
 
@@ -184,7 +246,6 @@ export default function DockerComposeVisualizer() {
       setError(null);
     } catch (e: any) {
       console.error("YAML Parse Error", e);
-      // Don't clear nodes immediately on typing error to avoid flickering
       setError(e.message);
     }
   }, [setNodes, setEdges]);
@@ -198,11 +259,12 @@ export default function DockerComposeVisualizer() {
   const handleEditorChange = (value: string | undefined) => {
     if (value) {
       setYamlContent(value);
+      // Debounce parsing could be added here for performance
       parseYamlToGraph(value);
     }
   };
 
-  // Handle React Flow Connection (Add depends_on)
+  // Handle Edge Connection (Add depends_on)
   const onConnect = useCallback((params: Connection) => {
     if (!params.source || !params.target) return;
     
@@ -224,7 +286,7 @@ export default function DockerComposeVisualizer() {
             // Avoid duplicates
             if (!targetService.depends_on.includes(sourceService)) {
                 targetService.depends_on.push(sourceService);
-                const newYaml = yaml.dump(parsed);
+                const newYaml = yaml.dump(parsed, { indent: 2 });
                 setYamlContent(newYaml);
             }
         }
@@ -232,6 +294,164 @@ export default function DockerComposeVisualizer() {
         console.error("Failed to update YAML from connection", e);
     }
   }, [yamlContent, setEdges]);
+
+  // Handle Edge Deletion (Remove depends_on)
+  const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
+      try {
+          const parsed = yaml.load(yamlContent) as DockerCompose;
+          let changed = false;
+
+          edgesToDelete.forEach(edge => {
+              // Edge id format: "target-source" or generated. 
+              // Better rely on source/target props
+              const targetName = edge.target;
+              const sourceName = edge.source;
+
+              if (parsed && parsed.services && parsed.services[targetName]) {
+                  const targetService = parsed.services[targetName];
+                  if (targetService.depends_on) {
+                      const idx = targetService.depends_on.indexOf(sourceName);
+                      if (idx > -1) {
+                          targetService.depends_on.splice(idx, 1);
+                          // Remove key if empty
+                          if (targetService.depends_on.length === 0) {
+                              delete targetService.depends_on;
+                          }
+                          changed = true;
+                      }
+                  }
+              }
+          });
+
+          if (changed) {
+              const newYaml = yaml.dump(parsed, { indent: 2 });
+              setYamlContent(newYaml);
+          }
+      } catch (e) {
+          console.error("Failed to update YAML from edge deletion", e);
+      }
+  }, [yamlContent]);
+
+  // Handle Node Double Click (Edit)
+  const onNodeDoubleClick = useCallback((event: React.MouseEvent, node: Node) => {
+      setEditingNodeId(node.id);
+      setEditForm({
+          serviceName: node.data.serviceName,
+          image: node.data.image || '',
+          ports: node.data.ports ? node.data.ports.join(', ') : '',
+          volumes: node.data.volumes ? node.data.volumes.join(', ') : ''
+      });
+      setIsEditOpen(true);
+  }, []);
+
+  // Save Node Edit
+  const handleSaveNode = () => {
+      if (!editingNodeId) return;
+
+      try {
+          const parsed = yaml.load(yamlContent) as DockerCompose;
+          if (!parsed.services) return;
+
+          // If service name changed, we need to handle renaming
+          const oldName = editingNodeId;
+          const newName = editForm.serviceName;
+          
+          let serviceConfig = parsed.services[oldName];
+
+          // Update Fields
+          serviceConfig.image = editForm.image;
+          
+          // Ports
+          if (editForm.ports.trim()) {
+              serviceConfig.ports = editForm.ports.split(',').map(p => p.trim());
+          } else {
+              delete serviceConfig.ports;
+          }
+
+          // Volumes
+          if (editForm.volumes.trim()) {
+              serviceConfig.volumes = editForm.volumes.split(',').map(v => v.trim());
+          } else {
+              delete serviceConfig.volumes;
+          }
+
+          // Handle Renaming
+          if (oldName !== newName) {
+              // Delete old key
+              delete parsed.services[oldName];
+              // Assign to new key
+              parsed.services[newName] = serviceConfig;
+              
+              // We also need to update depends_on references in OTHER services!
+              Object.values(parsed.services).forEach(svc => {
+                  if (svc.depends_on) {
+                      const idx = svc.depends_on.indexOf(oldName);
+                      if (idx > -1) {
+                          svc.depends_on[idx] = newName;
+                      }
+                  }
+              });
+          }
+
+          const newYaml = yaml.dump(parsed, { indent: 2 });
+          setYamlContent(newYaml);
+          // Graph will update automatically via useEffect -> parseYamlToGraph
+          setIsEditOpen(false);
+          toast({ title: "Service Updated", description: `Updated ${newName} configuration.` });
+
+      } catch (e: any) {
+          console.error("Failed to save node edit", e);
+          toast({ title: "Error", description: "Failed to update YAML. Check console.", variant: "destructive" });
+      }
+  };
+
+  // Toolbar Actions
+  const handleFormat = () => {
+      try {
+          const parsed = yaml.load(yamlContent);
+          const formatted = yaml.dump(parsed, { indent: 2, lineWidth: -1 });
+          setYamlContent(formatted);
+          toast({ title: "Formatted", description: "YAML formatted successfully." });
+      } catch (e) {
+          toast({ title: "Format Failed", description: "Invalid YAML content.", variant: "destructive" });
+      }
+  };
+
+  const handleQuickAdd = (templateKey: string) => {
+      try {
+          const template = TEMPLATES[templateKey as keyof typeof TEMPLATES];
+          // We need to append this string to the services section.
+          // Simple string append is risky, let's parse -> add -> dump
+          const parsed = yaml.load(yamlContent) as DockerCompose;
+          if (!parsed.services) parsed.services = {};
+
+          // Generate unique name
+          let baseName = templateKey === 'node' ? 'app' : templateKey;
+          let newName = baseName;
+          let counter = 1;
+          while (parsed.services[newName]) {
+              newName = `${baseName}-${counter}`;
+              counter++;
+          }
+
+          // Parse template string to object (hacky but works for simple templates)
+          // Actually, let's just use hardcoded objects for templates instead of strings next time.
+          // For now, let's parse the template string locally.
+          const tempObj = yaml.load(template) as Record<string, any>;
+          const serviceConfig = Object.values(tempObj)[0];
+
+          parsed.services[newName] = serviceConfig;
+          
+          const newYaml = yaml.dump(parsed, { indent: 2 });
+          setYamlContent(newYaml);
+          parseYamlToGraph(newYaml); // Force refresh
+          toast({ title: "Service Added", description: `Added ${newName} to configuration.` });
+
+      } catch (e) {
+          console.error(e);
+          toast({ title: "Error", description: "Failed to add template.", variant: "destructive" });
+      }
+  };
 
   const handleDownload = () => {
     const blob = new Blob([yamlContent], { type: 'text/yaml' });
@@ -243,14 +463,35 @@ export default function DockerComposeVisualizer() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-64px)] w-full bg-[#09090b] text-white overflow-hidden">
+    <div className="flex h-[calc(100vh-64px)] w-full bg-[#09090b] text-white overflow-hidden font-sans">
       {/* Left: Editor */}
       <div className="w-1/2 h-full flex flex-col border-r border-white/10">
-        <div className="h-10 bg-[#18181b] border-b border-white/10 flex items-center justify-between px-4">
-           <span className="text-xs font-mono text-zinc-400">docker-compose.yml</span>
+        <div className="h-12 bg-[#18181b] border-b border-white/10 flex items-center justify-between px-4">
+           <div className="flex items-center gap-3">
+               <span className="text-xs font-mono text-zinc-400">docker-compose.yml</span>
+               {error && <span className="text-xs text-red-400 flex items-center gap-1"><X size={12}/> Invalid YAML</span>}
+           </div>
+           
            <div className="flex items-center gap-2">
-             {error && <span className="text-xs text-red-400 mr-2">{error}</span>}
-             <button onClick={handleDownload} className="text-zinc-400 hover:text-white transition-colors">
+             <Button variant="ghost" size="sm" onClick={handleFormat} className="h-8 text-zinc-400 hover:text-white" title="Format YAML">
+                <Wand2 size={14} className="mr-1" /> Format
+             </Button>
+             
+             <Select onValueChange={handleQuickAdd}>
+                <SelectTrigger className="h-8 w-[130px] bg-zinc-800 border-zinc-700 text-xs">
+                    <SelectValue placeholder="Quick Add" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="redis">Redis</SelectItem>
+                    <SelectItem value="mysql">MySQL</SelectItem>
+                    <SelectItem value="nginx">Nginx</SelectItem>
+                    <SelectItem value="node">Node.js App</SelectItem>
+                </SelectContent>
+             </Select>
+
+             <div className="w-px h-4 bg-zinc-700 mx-1" />
+
+             <button onClick={handleDownload} className="text-zinc-400 hover:text-white transition-colors p-2 rounded hover:bg-zinc-800">
                 <Download size={14} />
              </button>
            </div>
@@ -275,25 +516,89 @@ export default function DockerComposeVisualizer() {
 
       {/* Right: Visualizer */}
       <div className="w-1/2 h-full bg-[#0c0c0e] relative">
-         <div className="absolute top-4 right-4 z-10 bg-[#18181b]/80 backdrop-blur border border-white/10 rounded-lg p-2">
-            <div className="text-[10px] text-zinc-500 font-mono mb-1">TIPS</div>
-            <div className="text-xs text-zinc-400">Drag connections to add <span className="text-blue-400">depends_on</span></div>
+         <div className="absolute top-4 right-4 z-10 bg-[#18181b]/90 backdrop-blur border border-white/10 rounded-lg p-3 shadow-xl">
+            <div className="text-[10px] text-zinc-500 font-bold mb-1 uppercase tracking-wider">Instructions</div>
+            <ul className="text-xs text-zinc-400 space-y-1">
+                <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"/>Drag to connect (depends_on)</li>
+                <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"/>Double-click node to edit</li>
+                <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500"/>Backspace to delete edge</li>
+            </ul>
          </div>
+         
          <ReactFlow
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onEdgesDelete={onEdgesDelete}
+            onNodeDoubleClick={onNodeDoubleClick}
             nodeTypes={nodeTypes}
             fitView
             className="bg-[#0c0c0e]"
             minZoom={0.2}
+            deleteKeyCode={['Backspace', 'Delete']}
          >
             <Background color="#222" gap={20} size={1} />
             <Controls className="!bg-[#18181b] !border-white/10 [&>button]:!fill-zinc-400 [&>button:hover]:!fill-white" />
          </ReactFlow>
       </div>
+
+      {/* Edit Node Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="bg-[#18181b] border-zinc-800 text-white sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+                <Settings size={18} className="text-blue-500" />
+                Edit Service
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name" className="text-zinc-400">Service Name</Label>
+              <Input
+                id="name"
+                value={editForm.serviceName}
+                onChange={(e) => setEditForm({ ...editForm, serviceName: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 focus:border-blue-500"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="image" className="text-zinc-400">Image</Label>
+              <Input
+                id="image"
+                value={editForm.image}
+                onChange={(e) => setEditForm({ ...editForm, image: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 focus:border-blue-500"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="ports" className="text-zinc-400">Ports (comma separated)</Label>
+              <Input
+                id="ports"
+                placeholder="80:80, 3000:3000"
+                value={editForm.ports}
+                onChange={(e) => setEditForm({ ...editForm, ports: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 focus:border-blue-500 font-mono text-xs"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="volumes" className="text-zinc-400">Volumes (comma separated)</Label>
+              <Input
+                id="volumes"
+                placeholder="./data:/data"
+                value={editForm.volumes}
+                onChange={(e) => setEditForm({ ...editForm, volumes: e.target.value })}
+                className="bg-zinc-900 border-zinc-700 focus:border-blue-500 font-mono text-xs"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsEditOpen(false)} className="text-zinc-400 hover:text-white hover:bg-zinc-800">Cancel</Button>
+            <Button onClick={handleSaveNode} className="bg-blue-600 hover:bg-blue-500 text-white">Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
