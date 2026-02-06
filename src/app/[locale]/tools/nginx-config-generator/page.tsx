@@ -81,13 +81,19 @@ server {
     }
 
     config += `    }
-    
+`;
+
+    if (!proxyPass) {
+        config += `    
     # Cache static files
     location ~* \\.(jpg|jpeg|png|gif|ico|css|js)$ {
         expires 7d;
         access_log off;
     }
-}`;
+`;
+    }
+
+    config += `}`;
 
     setGeneratedConfig(config);
   }, [domain, root, proxyPass, useSsl, isSpa]);
