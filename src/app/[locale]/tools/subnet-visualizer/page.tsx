@@ -48,6 +48,7 @@ export default function SubnetVisualizerPage() {
   const [appliedInput, setAppliedInput] = useState("192.168.1.0/24");
   const [hovered, setHovered] = useState<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [preferredFamily, setPreferredFamily] = useState<"IPv4" | "IPv6">("IPv4");
 
   const applied = useMemo(() => {
     try {
@@ -236,6 +237,7 @@ export default function SubnetVisualizerPage() {
     setAppliedInput("192.168.1.0/24");
     setHovered(null);
     setSelected(null);
+    setPreferredFamily("IPv4");
   };
 
   return (
@@ -243,9 +245,53 @@ export default function SubnetVisualizerPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Visual Subnet Calculator — IP Grid Matrix</h1>
-          <p className="text-sm text-muted-foreground">God's-eye view of a /24 subnet — hover to inspect individual IPs.</p>
+          <p className="text-sm text-muted-foreground">
+            {base.mode === "IPv4"
+              ? "God's-eye view of a /24 IPv4 subnet — hover to inspect individual IPs."
+              : "Visualizing address slices inside an IPv6 subnet — hover to inspect individual addresses."}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-end gap-2">
+          <div className="inline-flex rounded-full bg-zinc-900/80 border border-zinc-800 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setPreferredFamily("IPv4");
+                setDraftInput("192.168.1.0/24");
+                setAppliedInput("192.168.1.0/24");
+                setHovered(null);
+                setSelected(null);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full transition-colors",
+                base.mode === "IPv4"
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "bg-transparent text-zinc-400 hover:text-zinc-100"
+              )}
+            >
+              IPv4
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const sample = "2001:db8::/64";
+                setPreferredFamily("IPv6");
+                setDraftInput(sample);
+                setAppliedInput(sample);
+                setHovered(null);
+                setSelected(null);
+              }}
+              className={cn(
+                "px-3 py-1 rounded-full transition-colors",
+                base.mode === "IPv6"
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "bg-transparent text-zinc-400 hover:text-zinc-100"
+              )}
+            >
+              IPv6
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
           <input
             value={draftInput}
             onChange={(e) => setDraftInput(e.target.value)}
@@ -253,7 +299,11 @@ export default function SubnetVisualizerPage() {
               if (e.key === "Enter") handleApply();
             }}
             className="px-3 py-2 rounded-md bg-zinc-900 border border-zinc-700 text-sm"
-            placeholder="Enter IPv4 or IPv4/CIDR (e.g. 192.168.2.0/26)"
+            placeholder={
+              preferredFamily === "IPv4"
+                ? "Enter IPv4 or IPv4/CIDR (e.g. 192.168.2.0/26)"
+                : "Enter IPv6 or IPv6/CIDR (e.g. 2001:db8::/64)"
+            }
           />
           <Button onClick={handleApply} disabled={draftInput.trim() === appliedInput.trim()}>
             Apply
@@ -261,6 +311,7 @@ export default function SubnetVisualizerPage() {
           <Button variant="secondary" onClick={handleReset}>
             Reset
           </Button>
+          </div>
         </div>
       </div>
 
@@ -290,7 +341,13 @@ export default function SubnetVisualizerPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="md:col-span-3">
           <div className="bg-zinc-950 p-3 rounded-lg border border-zinc-800 shadow-lg">
-            <div className="grid grid-cols-16 gap-1">
+            <div
+              className={cn(
+                "grid gap-1",
+                "grid-cols-16",
+                base.mode === "IPv6" ? "max-h-[360px] overflow-auto pr-1" : ""
+              )}
+            >
               {cells.map((c) => {
                 const isHovered = hovered === c.index;
                 const isSelected = selected === c.index;
@@ -331,7 +388,9 @@ export default function SubnetVisualizerPage() {
                       className={cn(baseClasses, typeBg, isSelected ? "ring-2 ring-offset-1 ring-cyan-400" : "")}
                       title={c.ip}
                     >
-                      {c.index}
+                      {base.mode === "IPv6"
+                        ? c.index.toString(16).toUpperCase().padStart(2, "0")
+                        : c.index}
                     </div>
                   </Tooltip>
                 );
